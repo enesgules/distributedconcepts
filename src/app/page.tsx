@@ -107,6 +107,37 @@ export default function Home() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // ── Shareable step URLs ───────────────────────────────────────────
+  useEffect(() => {
+    const step = Number(new URLSearchParams(window.location.search).get("step"));
+    if (Number.isInteger(step) && step >= 1 && step <= 5) setActiveStep(step);
+  }, []);
+
+  useEffect(() => {
+    window.history.replaceState(
+      null,
+      "",
+      activeStep === 0 ? window.location.pathname : `?step=${activeStep}`
+    );
+  }, [activeStep]);
+
+  // ── Keyboard navigation (← / →) ───────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.closest("input, textarea, select, [contenteditable]")
+      )
+        return;
+      setActiveStep((s) =>
+        e.key === "ArrowRight" ? Math.min(s + 1, 5) : Math.max(s - 1, 0)
+      );
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // ── Responsive Framer variants ────────────────────────────────────
   const leftPanelVariants = isMobile
     ? mobileLeftPanelVariants

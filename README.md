@@ -2,6 +2,10 @@
 
 An interactive 3D learning platform that teaches distributed database concepts — replication, consistency, and failover — through hands-on visualizations on a living globe.
 
+![Demo: building a database, executing a write, and watching failover](docs/demo.gif)
+
+Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?step=5`.
+
 ## Experiences
 
 | # | Experience | What You Learn |
