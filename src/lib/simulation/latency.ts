@@ -1,5 +1,5 @@
 import { calculateDistance } from "@/lib/geo-utils";
-import { getRegionById } from "@/lib/regions";
+import { getRegionById, type Region } from "@/lib/regions";
 
 const SPEED_OF_LIGHT_KM_S = 299_792;
 const NETWORK_OVERHEAD = 2.2;
@@ -135,6 +135,21 @@ function lookupRegionLatency(idA: string, idB: string): number | null {
 
 // ── Formula-based estimation (for arbitrary lat/lon, e.g. heatmap) ──
 
+function formulaLatencyMs(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const distanceKm = calculateDistance(lat1, lon1, lat2, lon2);
+  const roundTripMs = (distanceKm / SPEED_OF_LIGHT_KM_S) * 1000 * 2;
+  return BASE_LATENCY_MS + roundTripMs * NETWORK_OVERHEAD;
+}
+
+function jitter(): number {
+  return 1 + (Math.random() * 2 - 1) * JITTER_RANGE;
+}
+
 /**
  * Estimate round-trip network latency between two geographic points.
  * Includes slight random jitter to simulate real-world variance.
@@ -145,12 +160,7 @@ export function estimateLatency(
   lat2: number,
   lon2: number
 ): number {
-  const distanceKm = calculateDistance(lat1, lon1, lat2, lon2);
-  const lightTimeMs = (distanceKm / SPEED_OF_LIGHT_KM_S) * 1000;
-  const roundTripMs = lightTimeMs * 2;
-  const base = BASE_LATENCY_MS + roundTripMs * NETWORK_OVERHEAD;
-  const jitter = 1 + (Math.random() * 2 - 1) * JITTER_RANGE;
-  return Math.round(base * jitter);
+  return Math.round(formulaLatencyMs(lat1, lon1, lat2, lon2) * jitter());
 }
 
 /**
@@ -163,10 +173,40 @@ export function estimateLatencyStable(
   lat2: number,
   lon2: number
 ): number {
-  const distanceKm = calculateDistance(lat1, lon1, lat2, lon2);
-  const lightTimeMs = (distanceKm / SPEED_OF_LIGHT_KM_S) * 1000;
-  const roundTripMs = lightTimeMs * 2;
-  return Math.round(BASE_LATENCY_MS + roundTripMs * NETWORK_OVERHEAD);
+  return Math.round(formulaLatencyMs(lat1, lon1, lat2, lon2));
+}
+
+/**
+ * Find the active region with the lowest stable latency from a client
+ * position. Returns null when no ids resolve to regions.
+ */
+export function findNearestRegion(
+  lat: number,
+  lon: number,
+  regionIds: string[]
+): { region: Region; latencyMs: number } | null {
+  let best: { region: Region; latencyMs: number } | null = null;
+  for (const id of regionIds) {
+    const region = getRegionById(id);
+    if (!region) continue;
+    const latencyMs = estimateLatencyStable(lat, lon, region.lat, region.lon);
+    if (!best || latencyMs < best.latencyMs) {
+      best = { region, latencyMs };
+    }
+  }
+  return best;
+}
+
+/**
+ * How far a read trails replication, in ms. Negative → the read arrives at
+ * the replica before the replicated write does, so it sees stale data.
+ */
+export function staleReadMarginMs(
+  readDelayMs: number,
+  readLatencyMs: number,
+  replicationLatencyMs: number
+): number {
+  return readDelayMs + readLatencyMs - replicationLatencyMs;
 }
 
 /**
@@ -177,18 +217,14 @@ export function estimateLatencyBetweenRegions(
   regionIdA: string,
   regionIdB: string
 ): number | null {
+  // Try real measured data first, add slight jitter
+  const measured = lookupRegionLatency(regionIdA, regionIdB);
+  if (measured !== null) return Math.round(measured * jitter());
+
+  // Fallback to formula
   const a = getRegionById(regionIdA);
   const b = getRegionById(regionIdB);
   if (!a || !b) return null;
-
-  // Try real measured data first, add slight jitter
-  const measured = lookupRegionLatency(regionIdA, regionIdB);
-  if (measured !== null) {
-    const jitter = 1 + (Math.random() * 2 - 1) * JITTER_RANGE;
-    return Math.round(measured * jitter);
-  }
-
-  // Fallback to formula
   return estimateLatency(a.lat, a.lon, b.lat, b.lon);
 }
 

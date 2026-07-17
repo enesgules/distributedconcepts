@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -165,15 +165,46 @@ export default function Globe() {
   const earthMatRef = useRef<THREE.ShaderMaterial>(null);
   const atmosMatRef = useRef<THREE.ShaderMaterial>(null);
 
-  // Update sun direction every frame (moves slowly, but stays accurate)
-  useFrame(() => {
+  // Progressive texture upgrade: the 4k maps above get the globe on screen
+  // fast; once the scene is up, quietly fetch the 8k maps and swap them into
+  // the shader uniforms. Private LoadingManager so drei's useProgress (which
+  // drives the loading screen) never sees these requests.
+  useEffect(() => {
+    let disposed = false;
+    let day8k: THREE.Texture | null = null;
+    let night8k: THREE.Texture | null = null;
+    // Small delay so the fetch doesn't compete with entry animations
+    const t = setTimeout(() => {
+      const loader = new THREE.TextureLoader(new THREE.LoadingManager());
+      Promise.all([
+        loader.loadAsync("/textures/earth_day_8k.jpg"),
+        loader.loadAsync("/textures/earth_night_8k.jpg"),
+      ]).then(([day, night]) => {
+        day8k = day;
+        night8k = night;
+        if (disposed || !earthMatRef.current) return;
+        earthMatRef.current.uniforms.uDayTexture.value = day;
+        earthMatRef.current.uniforms.uNightTexture.value = night;
+      });
+    }, 2000);
+    return () => {
+      disposed = true;
+      clearTimeout(t);
+      day8k?.dispose();
+      night8k?.dispose();
+    };
+  }, []);
+
+  // The sun moves ~0.25°/minute — updating once a minute is imperceptible
+  // and avoids allocating a Date + Vector3 every frame
+  const sinceSunUpdate = useRef(0);
+  useFrame((_, delta) => {
+    sinceSunUpdate.current += delta;
+    if (sinceSunUpdate.current < 60) return;
+    sinceSunUpdate.current = 0;
     const dir = getSunDirection(new Date());
-    if (earthMatRef.current) {
-      earthMatRef.current.uniforms.uSunDirection.value.copy(dir);
-    }
-    if (atmosMatRef.current) {
-      atmosMatRef.current.uniforms.uSunDirection.value.copy(dir);
-    }
+    earthMatRef.current?.uniforms.uSunDirection.value.copy(dir);
+    atmosMatRef.current?.uniforms.uSunDirection.value.copy(dir);
   });
 
   const earthUniforms = useMemo(

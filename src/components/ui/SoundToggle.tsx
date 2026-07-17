@@ -2,13 +2,13 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
-
-const STORAGE_KEY = "sound-enabled";
+import { SOUND_STORAGE_KEY } from "@/lib/sounds";
 
 export default function SoundToggle() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const wasEnabled = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "true";
-  const [playing, setPlaying] = useState(wasEnabled);
+  // Starts false on both server and client; the mount effect reads the saved
+  // preference — avoids a hydration mismatch from reading localStorage in render
+  const [playing, setPlaying] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const hasSeenWelcome = useOnboardingStore((s) => s.hasSeenWelcome);
 
@@ -21,13 +21,15 @@ export default function SoundToggle() {
 
     let resumeOnInteraction: (() => void) | null = null;
 
-    // Try to resume if user previously enabled sound
-    if (playing) {
+    // Resume if the user previously enabled sound. One-time sync from
+    // localStorage after hydration; reading it in render would mismatch SSR.
+    if (localStorage.getItem(SOUND_STORAGE_KEY) === "true") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPlaying(true);
       audio.play().catch(() => {
         // Autoplay blocked — resume on first user interaction
         resumeOnInteraction = () => {
           audio.play().catch(() => {});
-          document.removeEventListener("click", resumeOnInteraction!);
         };
         document.addEventListener("click", resumeOnInteraction, { once: true });
       });
@@ -40,7 +42,6 @@ export default function SoundToggle() {
       audio.pause();
       audio.src = "";
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Show tooltip after welcome overlay is dismissed (every page load)
@@ -66,10 +67,10 @@ export default function SoundToggle() {
     if (playing) {
       audio.pause();
       setPlaying(false);
-      localStorage.setItem(STORAGE_KEY, "false");
+      localStorage.setItem(SOUND_STORAGE_KEY, "false");
     } else {
       audio.play().then(() => setPlaying(true));
-      localStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem(SOUND_STORAGE_KEY, "true");
     }
   }, [playing, showTooltip]);
 

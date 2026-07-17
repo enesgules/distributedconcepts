@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
-import { useFailoverStore } from "@/lib/store/failover-store";
+import { useFailoverStore, type FailoverPhase } from "@/lib/store/failover-store";
 import { getRegionById } from "@/lib/regions";
+import { FlowPanel, SectionLabel } from "./FlowPanel";
 
-const PHASE_NARRATION: Record<string, (ctx: { failedCity: string; queueCount: number }) => string> = {
+type NarratedPhase = Exclude<FailoverPhase, "idle" | "complete">;
+
+const PHASE_NARRATION: Record<NarratedPhase, (ctx: { failedCity: string; queueCount: number }) => string> = {
   failure: ({ failedCity }) => `Primary node in ${failedCity} has failed. Backup replicas in the same region are standing by...`,
   detecting: ({ queueCount }) => `Health checks detecting failure. ${queueCount} write requests queued...`,
   electing: ({ failedCity }) => `Backup replicas in ${failedCity} are electing a new leader...`,
@@ -28,17 +30,9 @@ export default function FailoverPanel() {
   const failedRegion = failedRegionId ? getRegionById(failedRegionId) : null;
   const currentPrimary = primaryRegion ? getRegionById(primaryRegion) : null;
 
-  const handleKill = useCallback(() => {
-    killPrimary();
-  }, [killPrimary]);
-
-  const handleReset = useCallback(() => {
-    reset();
-  }, [reset]);
-
   const narration =
     phase !== "idle" && phase !== "complete"
-      ? PHASE_NARRATION[phase]?.({
+      ? PHASE_NARRATION[phase]({
           failedCity: failedRegion?.city ?? "unknown",
           queueCount: queuedRequests.length,
         })
@@ -47,29 +41,40 @@ export default function FailoverPanel() {
   const isAnimating = phase !== "idle" && phase !== "complete";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4 }}
-      className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md"
+    <FlowPanel
+      title="Failover & Leader Election"
+      description="Watch how in-region replicas take over on failure"
+      footer={
+        <>
+          {phase === "idle" && (
+            <button
+              onClick={killPrimary}
+              disabled={!primaryRegion || readRegions.length === 0}
+              className="w-full cursor-pointer rounded-full bg-red-400/10 px-4 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              Kill Primary
+            </button>
+          )}
+          {isAnimating && (
+            <div className="text-center text-xs text-zinc-500">
+              Failing over...
+            </div>
+          )}
+          {phase === "complete" && (
+            <button
+              onClick={reset}
+              className="w-full cursor-pointer rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+            >
+              Reset & Try Again
+            </button>
+          )}
+        </>
+      }
     >
-      {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-sm font-semibold text-zinc-200">
-          Failover & Leader Election
-        </h2>
-        <p className="mt-1 text-[11px] text-zinc-500">
-          Watch how in-region replicas take over on failure
-        </p>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <>
         {/* Cluster Status */}
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-            Cluster Status
-          </p>
+          <SectionLabel>Cluster Status</SectionLabel>
           <div className="space-y-1.5">
             {/* Primary */}
             {currentPrimary && (
@@ -222,33 +227,7 @@ export default function FailoverPanel() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-
-      {/* Footer */}
-      <div className="shrink-0 border-t border-zinc-800/50 px-5 py-4">
-        {phase === "idle" && (
-          <button
-            onClick={handleKill}
-            disabled={!primaryRegion || readRegions.length === 0}
-            className="w-full cursor-pointer rounded-full bg-red-400/10 px-4 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            Kill Primary
-          </button>
-        )}
-        {isAnimating && (
-          <div className="text-center text-xs text-zinc-500">
-            Failing over...
-          </div>
-        )}
-        {phase === "complete" && (
-          <button
-            onClick={handleReset}
-            className="w-full cursor-pointer rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
-          >
-            Reset & Try Again
-          </button>
-        )}
-      </div>
-    </motion.div>
+      </>
+    </FlowPanel>
   );
 }

@@ -7,12 +7,7 @@ import type { Region } from "@/lib/regions";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { GLOBE_RADIUS } from "./Globe";
 import { useDatabaseStore } from "@/lib/store/database-store";
-import RegionTooltip from "./RegionTooltip";
-
-interface NavigationHint {
-  text: string;
-  onClick: () => void;
-}
+import RegionTooltip, { type NavigationHint } from "./RegionTooltip";
 
 interface RegionMarkerProps {
   regions: Region[];

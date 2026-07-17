@@ -3,10 +3,15 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
-import * as THREE from "three";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { getRegionById } from "@/lib/regions";
+import { staleReadMarginMs } from "@/lib/simulation/latency";
+import {
+  ANIMATION_SPEED,
+  FLASH_PAUSE_MS,
+  advance,
+} from "@/lib/simulation/animation";
 import { computeArcPoints } from "@/lib/arc-utils";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
@@ -18,9 +23,6 @@ import {
   playReplicaArriveSound,
   playStaleSound,
 } from "@/lib/sounds";
-
-const ANIMATION_SPEED = 0.003;
-const MIN_DURATION = 0.3;
 
 interface Props {
   replicaRegionId: string;
@@ -60,7 +62,7 @@ export default function ConsistencyRaceVisualization({
   const replica = getRegionById(replicaRegionId);
 
   // Arc: client → primary
-  const writArc = useMemo(() => {
+  const writeArc = useMemo(() => {
     if (!clientLocation || !primary) return null;
     return computeArcPoints(
       clientLocation.lat,
@@ -93,11 +95,7 @@ export default function ConsistencyRaceVisualization({
 
     // --- Writing phase: client → primary ---
     if (store.phase === "writing") {
-      const duration = Math.max(
-        store.primaryLatencyMs * ANIMATION_SPEED,
-        MIN_DURATION
-      );
-      const p = Math.min(store.writeProgress + delta / duration, 1);
+      const p = advance(store.writeProgress, delta, store.primaryLatencyMs);
       store.setWriteProgress(p);
 
       if (p >= 1) {
@@ -121,31 +119,25 @@ export default function ConsistencyRaceVisualization({
               }
             }, scaledDelay);
           }
-        }, 400);
+        }, FLASH_PAUSE_MS);
       }
     }
 
     // --- Racing phase: replication wave + read packet ---
     if (store.phase === "racing") {
       // Replication wave always progresses
-      const repDuration = Math.max(
-        store.replicationLatencyMs * ANIMATION_SPEED,
-        MIN_DURATION
-      );
-      const repP = Math.min(
-        store.replicationProgress + delta / repDuration,
-        1
+      const repP = advance(
+        store.replicationProgress,
+        delta,
+        store.replicationLatencyMs
       );
       store.setReplicationProgress(repP);
 
       // Read packet progresses only after delay
       if (store.readStarted) {
-        const readDuration = Math.max(
-          store.readLatencyMs * ANIMATION_SPEED,
-          MIN_DURATION
+        store.setReadProgress(
+          advance(store.readProgress, delta, store.readLatencyMs)
         );
-        const readP = Math.min(store.readProgress + delta / readDuration, 1);
-        store.setReadProgress(readP);
       }
 
       // Check if either arrived
@@ -154,16 +146,21 @@ export default function ConsistencyRaceVisualization({
 
       if (readArrived || replicationArrived) {
         // Determine result based on actual latency math (not animation timing)
-        const isStale =
-          store.readDelay + store.readLatencyMs < store.replicationLatencyMs;
+        // ("stale", not "isStale" — avoid shadowing the store selector above)
+        const stale =
+          staleReadMarginMs(
+            store.readDelay,
+            store.readLatencyMs,
+            store.replicationLatencyMs
+          ) < 0;
 
-        if (isStale) {
+        if (stale) {
           playStaleSound();
         } else {
           playReplicaArriveSound();
         }
 
-        store.onRaceResult(isStale);
+        store.onRaceResult(stale);
 
         resultTimeoutRef.current = setTimeout(() => {
           const s = useConsistencyRaceStore.getState();
@@ -185,10 +182,10 @@ export default function ConsistencyRaceVisualization({
       )}
 
       {/* Write arc + packet: client → primary */}
-      {writArc && isAnimating && (
+      {writeArc && isAnimating && (
         <group>
           <Line
-            points={writArc}
+            points={writeArc}
             color="#06b6d4"
             lineWidth={1}
             transparent
@@ -196,7 +193,7 @@ export default function ConsistencyRaceVisualization({
           />
           {phase === "writing" && (
             <DataPacket
-              arcPoints={writArc}
+              arcPoints={writeArc}
               progress={writeProgress}
               color="#06b6d4"
             />

@@ -3,28 +3,11 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
-import { calculateGlobalCoverage, estimateLatencyStable } from "@/lib/simulation/latency";
+import {
+  calculateGlobalCoverage,
+  findNearestRegion,
+} from "@/lib/simulation/latency";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import { getRegionById, regions, type Region } from "@/lib/regions";
-import { calculateDistance } from "@/lib/geo-utils";
-
-function findNearestRegion(
-  lat: number,
-  lon: number,
-  pool: Region[]
-): Region | null {
-  if (pool.length === 0) return null;
-  let nearest = pool[0];
-  let minDist = Infinity;
-  for (const r of pool) {
-    const d = calculateDistance(lat, lon, r.lat, r.lon);
-    if (d < minDist) {
-      minDist = d;
-      nearest = r;
-    }
-  }
-  return nearest;
-}
 
 export default function LatencyStats() {
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
@@ -45,24 +28,12 @@ export default function LatencyStats() {
   // User's personal latency to nearest active region
   const userLatency = useMemo(() => {
     if (!userLocation || !primaryRegion) return null;
-    const activeRegions = [primaryRegion, ...readRegions]
-      .map(getRegionById)
-      .filter((r): r is Region => r !== undefined);
-    const nearest = findNearestRegion(
-      userLocation.lat,
-      userLocation.lon,
-      activeRegions
-    );
+    const nearest = findNearestRegion(userLocation.lat, userLocation.lon, [
+      primaryRegion,
+      ...readRegions,
+    ]);
     if (!nearest) return null;
-    return {
-      ms: estimateLatencyStable(
-        userLocation.lat,
-        userLocation.lon,
-        nearest.lat,
-        nearest.lon
-      ),
-      city: nearest.city,
-    };
+    return { ms: nearest.latencyMs, city: nearest.region.city };
   }, [userLocation, primaryRegion, readRegions]);
 
   if (!primaryRegion) return null;

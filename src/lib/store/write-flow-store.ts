@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LatLon } from "@/lib/geo-utils";
 
 export type AnimationPhase =
   | "idle"
@@ -21,7 +22,7 @@ export interface WriteFlowEvent {
 }
 
 interface WriteFlowState {
-  clientLocation: { lat: number; lon: number } | null;
+  clientLocation: LatLon | null;
   phase: AnimationPhase;
   primaryProgress: number;
   primaryLatencyMs: number;
@@ -56,17 +57,8 @@ export const useWriteFlowStore = create<WriteFlowState>((set, get) => ({
   events: [],
 
   setClientLocation: (lat, lon) => {
-    const state = get();
-    // Reset animation if in progress
-    if (state.phase !== "idle") {
-      set({
-        phase: "idle",
-        primaryProgress: 0,
-        replicaStatuses: [],
-        response: null,
-        events: [],
-      });
-    }
+    // Reset any in-progress animation before moving the client
+    if (get().phase !== "idle") get().reset();
     set({ clientLocation: { lat, lon } });
   },
 

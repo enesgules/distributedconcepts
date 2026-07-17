@@ -9,6 +9,11 @@ import { useFailoverStore } from "@/lib/store/failover-store";
 import { getRegionById } from "@/lib/regions";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { computeArcPoints } from "@/lib/arc-utils";
+import {
+  advance,
+  FLASH_PAUSE_MS,
+  latencyToDuration,
+} from "@/lib/simulation/animation";
 import { GLOBE_RADIUS } from "./Globe";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
@@ -19,8 +24,8 @@ import {
   playRecoveryChimeSound,
 } from "@/lib/sounds";
 
-const ANIMATION_SPEED = 0.003;
-const MIN_DURATION = 0.3;
+// Reused across frames to avoid allocating a Vector3 per frame
+const _camDir = new THREE.Vector3();
 
 /** Old arcs dissolving with fading opacity */
 function BreakingArcs({ progress }: { progress: number }) {
@@ -113,7 +118,7 @@ function QueuedRequestPacket({
 
   useFrame((state) => {
     if (badgeRef.current) {
-      const dot = normal.dot(state.camera.position.clone().normalize());
+      const dot = normal.dot(_camDir.copy(state.camera.position).normalize());
       badgeRef.current.style.opacity = dot > 0.05 ? "1" : "0";
     }
   });
@@ -243,9 +248,10 @@ export default function FailoverVisualization() {
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const timeouts = phaseTimeoutsRef.current;
     return () => {
-      for (const t of phaseTimeoutsRef.current) clearTimeout(t);
-      phaseTimeoutsRef.current.clear();
+      for (const t of timeouts) clearTimeout(t);
+      timeouts.clear();
     };
   }, []);
 
@@ -285,8 +291,7 @@ export default function FailoverVisualization() {
     }
 
     if (store.phase === "detecting") {
-      const duration = Math.max(store.detectionTimeMs * ANIMATION_SPEED, MIN_DURATION);
-      const p = Math.min(store.detectionProgress + delta / duration, 1);
+      const p = advance(store.detectionProgress, delta, store.detectionTimeMs);
       store.setDetectionProgress(p);
       store.setDowntime(Math.round(p * store.detectionTimeMs));
 
@@ -305,8 +310,7 @@ export default function FailoverVisualization() {
     }
 
     if (store.phase === "electing") {
-      const duration = Math.max(store.electionTimeMs * ANIMATION_SPEED, MIN_DURATION);
-      const p = Math.min(store.electionProgress + delta / duration, 1);
+      const p = advance(store.electionProgress, delta, store.electionTimeMs);
       store.setElectionProgress(p);
 
       store.setDowntime(
@@ -337,13 +341,13 @@ export default function FailoverVisualization() {
               type: "reconnect",
             });
           }
-        }, 400);
+        }, FLASH_PAUSE_MS);
         phaseTimeoutsRef.current.add(t);
       }
     }
 
     if (store.phase === "recovering") {
-      const duration = Math.max(store.recoveryTimeMs * ANIMATION_SPEED, MIN_DURATION);
+      const duration = latencyToDuration(store.recoveryTimeMs);
       const p = Math.min(store.recoveryProgress + delta / duration, 1);
       store.setRecoveryProgress(p);
 

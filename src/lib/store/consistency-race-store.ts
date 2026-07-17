@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LatLon } from "@/lib/geo-utils";
 
 export type ConsistencyPhase =
   | "idle"
@@ -9,7 +10,7 @@ export type ConsistencyPhase =
   | "complete";
 
 interface ConsistencyRaceState {
-  clientLocation: { lat: number; lon: number } | null;
+  clientLocation: LatLon | null;
   phase: ConsistencyPhase;
   readDelay: number;
 
@@ -58,17 +59,8 @@ export const useConsistencyRaceStore = create<ConsistencyRaceState>(
     isStale: null,
 
     setClientLocation: (lat, lon) => {
-      const state = get();
-      if (state.phase !== "idle") {
-        set({
-          phase: "idle",
-          writeProgress: 0,
-          replicationProgress: 0,
-          readProgress: 0,
-          readStarted: false,
-          isStale: null,
-        });
-      }
+      // Reset any in-progress animation before moving the client
+      if (get().phase !== "idle") get().reset();
       set({ clientLocation: { lat, lon } });
     },
 

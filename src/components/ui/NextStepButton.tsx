@@ -1,6 +1,6 @@
 "use client";
 
-const STEP_LABELS = ["Regions", "Write Flow", "Read Flow", "Consistency", "Failover"];
+import { STEPS, LAST_STEP } from "@/lib/steps";
 
 interface NextStepButtonProps {
   activeStep: number;
@@ -10,8 +10,8 @@ interface NextStepButtonProps {
 }
 
 export default function NextStepButton({ activeStep, onNext, onRestart, className = "" }: NextStepButtonProps) {
-  const isLastStep = activeStep >= 5;
-  const label = isLastStep ? "Start Over" : STEP_LABELS[activeStep];
+  const isLastStep = activeStep >= LAST_STEP;
+  const label = isLastStep ? "Start Over" : STEPS[activeStep + 1]?.shortTitle;
   if (!label) return null;
 
   return (

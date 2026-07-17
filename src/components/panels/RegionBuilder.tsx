@@ -10,7 +10,7 @@ import {
   type Region,
 } from "@/lib/regions";
 import { estimateLatencyBetweenRegions } from "@/lib/simulation/latency";
-import { playSelectSound, playDeselectSound, playConnectionSound } from "@/lib/sounds";
+import { playRegionToggleSound } from "@/lib/sounds";
 
 interface ContinentGroup {
   name: string;
@@ -195,14 +195,10 @@ export default function RegionBuilder() {
                     role={getRole(region.id)}
                     latency={getLatency(region.id)}
                     onToggle={() => {
-                      const role = getRole(region.id);
-                      if (role !== "available") {
-                        playDeselectSound();
-                      } else if (!primaryRegion) {
-                        playSelectSound();
-                      } else {
-                        playConnectionSound();
-                      }
+                      playRegionToggleSound(
+                        getRole(region.id) !== "available",
+                        primaryRegion !== null
+                      );
                       toggleRegion(region.id);
                     }}
                     onHover={(h) => setHoveredRegion(h ? region.id : null)}

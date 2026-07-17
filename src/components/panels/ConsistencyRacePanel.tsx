@@ -9,15 +9,17 @@ import {
   estimateLatency,
   estimateLatencyBetweenRegions,
   estimateLatencyStable,
+  staleReadMarginMs,
 } from "@/lib/simulation/latency";
 import { playPacketSendSound } from "@/lib/sounds";
+import { FlowPanel, ExecuteFooter } from "./FlowPanel";
 
 function predictionLabel(
   readDelay: number,
   replicationMs: number,
   readMs: number
 ): { text: string; color: string } {
-  const margin = readDelay + readMs - replicationMs;
+  const margin = staleReadMarginMs(readDelay, readMs, replicationMs);
   if (margin <= -20) return { text: "Will be stale", color: "text-red-400" };
   if (margin <= 0) return { text: "Likely stale", color: "text-red-400" };
   if (margin <= 20) return { text: "Close race", color: "text-yellow-400" };
@@ -107,24 +109,29 @@ export default function ConsistencyRacePanel({
   }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4 }}
-      className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md"
+    <FlowPanel
+      title="Consistency Race"
+      description="Can your read outrun the replication?"
+      footer={
+        nearestIsPrimary ? (
+          <p className="text-center text-[11px] text-zinc-600">
+            Click closer to a read replica to start the race
+          </p>
+        ) : (
+          <ExecuteFooter
+            complete={phase === "complete"}
+            onExecute={handleExecute}
+            onReplay={handleReplay}
+            disabled={!canExecute}
+            busy={isAnimating}
+            executeLabel="Run Race"
+            busyLabel="Racing..."
+            replayLabel="Run Again"
+          />
+        )
+      }
     >
-      {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-sm font-semibold text-zinc-200">
-          Consistency Race
-        </h2>
-        <p className="mt-1 text-[11px] text-zinc-500">
-          Can your read outrun the replication?
-        </p>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <>
         {/* Reading from primary — no race possible */}
         {clientLocation && nearestIsPrimary && (
           <motion.div
@@ -380,31 +387,7 @@ export default function ConsistencyRacePanel({
             </p>
           </motion.div>
         )}
-      </div>
-
-      {/* Footer */}
-      <div className="shrink-0 border-t border-zinc-800/50 px-5 py-4">
-        {nearestIsPrimary ? (
-          <p className="text-center text-[11px] text-zinc-600">
-            Click closer to a read replica to start the race
-          </p>
-        ) : phase === "complete" ? (
-          <button
-            onClick={handleReplay}
-            className="w-full rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
-          >
-            Run Again
-          </button>
-        ) : (
-          <button
-            onClick={handleExecute}
-            disabled={!canExecute || isAnimating}
-            className="w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-400/20 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {isAnimating ? "Racing..." : "Run Race"}
-          </button>
-        )}
-      </div>
-    </motion.div>
+      </>
+    </FlowPanel>
   );
 }

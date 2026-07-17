@@ -21,7 +21,8 @@ export default function ReplicationWave({
   progress,
   color = "#10b981",
 }: ReplicationWaveProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef =
+    useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
 
   const position = useMemo(
     () => latLonToVector3(lat, lon, GLOBE_RADIUS + 0.02),
@@ -44,7 +45,7 @@ export default function ReplicationWave({
     const scale = progress * MAX_RADIUS;
     meshRef.current.scale.setScalar(scale || 0.001); // avoid zero scale
     const opacity = 0.5 * (1 - progress * 0.8);
-    (meshRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+    meshRef.current.material.opacity = opacity;
     meshRef.current.visible = progress > 0 && progress < 1;
   });
 

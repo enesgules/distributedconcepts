@@ -14,7 +14,8 @@ interface PrimaryFlashProps {
 }
 
 export default function PrimaryFlash({ lat, lon, active, color = "#10b981" }: PrimaryFlashProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const meshRef =
+    useRef<THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>>(null);
   const progressRef = useRef(0);
   const wasActive = useRef(false);
 
@@ -43,7 +44,7 @@ export default function PrimaryFlash({ lat, lon, active, color = "#10b981" }: Pr
     const opacity = 0.6 * (1 - t);
 
     meshRef.current.scale.setScalar(scale);
-    (meshRef.current.material as THREE.MeshBasicMaterial).opacity = opacity;
+    meshRef.current.material.opacity = opacity;
     meshRef.current.visible = t < 1;
   });
 

@@ -3,17 +3,14 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
-import * as THREE from "three";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
+import { advance, FLASH_PAUSE_MS } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
 import { playAckSound, playResponseSound } from "@/lib/sounds";
-
-const ANIMATION_SPEED = 0.003;
-const MIN_DURATION = 0.3;
 
 export default function ReadFlowVisualization() {
   const clientLocation = useReadFlowStore((s) => s.clientLocation);
@@ -56,13 +53,10 @@ export default function ReadFlowVisualization() {
     const store = useReadFlowStore.getState();
 
     if (store.phase === "fetching") {
-      const duration = Math.max(
-        store.nearestLatencyMs * ANIMATION_SPEED,
-        MIN_DURATION
-      );
-      const newProgress = Math.min(
-        store.fetchProgress + delta / duration,
-        1
+      const newProgress = advance(
+        store.fetchProgress,
+        delta,
+        store.nearestLatencyMs
       );
       store.setFetchProgress(newProgress);
 
@@ -75,18 +69,15 @@ export default function ReadFlowVisualization() {
           if (s.phase === "arriving") {
             s.setPhase("responding");
           }
-        }, 400);
+        }, FLASH_PAUSE_MS);
       }
     }
 
     if (store.phase === "responding") {
-      const duration = Math.max(
-        store.nearestLatencyMs * ANIMATION_SPEED,
-        MIN_DURATION
-      );
-      const newProgress = Math.min(
-        store.responseProgress + delta / duration,
-        1
+      const newProgress = advance(
+        store.responseProgress,
+        delta,
+        store.nearestLatencyMs
       );
       store.setResponseProgress(newProgress);
 

@@ -24,7 +24,7 @@ export default function Image() {
         }}
       >
         {/* globe mark, echoing the favicon */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+        { }
         <img
           src={globeMarkDataUri({ background: false })}
           width={620}

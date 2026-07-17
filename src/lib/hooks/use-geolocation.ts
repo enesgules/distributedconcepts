@@ -1,13 +1,9 @@
 "use client";
 
-import { useSyncExternalStore, useCallback } from "react";
+import { useSyncExternalStore } from "react";
+import type { LatLon } from "@/lib/geo-utils";
 
-interface GeoPosition {
-  lat: number;
-  lon: number;
-}
-
-let cachedPosition: GeoPosition | null = null;
+let cachedPosition: LatLon | null = null;
 let requested = false;
 const listeners = new Set<() => void>();
 
@@ -35,14 +31,14 @@ function subscribe(callback: () => void) {
   };
 }
 
-function getSnapshot(): GeoPosition | null {
+function getSnapshot(): LatLon | null {
   return cachedPosition;
 }
 
-function getServerSnapshot(): GeoPosition | null {
+function getServerSnapshot(): LatLon | null {
   return null;
 }
 
-export function useGeolocation(): GeoPosition | null {
+export function useGeolocation(): LatLon | null {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

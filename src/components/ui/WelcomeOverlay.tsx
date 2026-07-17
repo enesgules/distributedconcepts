@@ -1,36 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
-
-const experiences = [
-  {
-    title: "Explore the Globe",
-    description: "See all available regions and find which one is closest to you",
-  },
-  {
-    title: "Build Your Database",
-    description:
-      "Set a primary region, add read replicas, and see latency heatmaps form across the globe",
-  },
-  {
-    title: "Write Flow",
-    description: "Execute a write and watch it travel to the primary, get confirmed, then replicate to every read region",
-  },
-  {
-    title: "Read Flow",
-    description: "See how reads route to the nearest replica",
-  },
-  {
-    title: "Eventual Consistency",
-    description: "Race: can you read before replication finishes?",
-  },
-  {
-    title: "Failover",
-    description: "Kill the primary and watch leader election happen",
-  },
-];
+import { STEPS } from "@/lib/steps";
 
 interface WelcomeOverlayProps {
   forceOpen?: boolean;
@@ -41,36 +14,21 @@ export default function WelcomeOverlay({
   forceOpen = false,
   onClose,
 }: WelcomeOverlayProps) {
-  const [hydrated, setHydrated] = useState(false);
-  const [visible, setVisible] = useState(false);
   const hasSeenWelcome = useOnboardingStore((s) => s.hasSeenWelcome);
   const setWelcomeSeen = useOnboardingStore((s) => s.setWelcomeSeen);
 
-  useEffect(() => {
-    const unsub = useOnboardingStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-    if (useOnboardingStore.persist.hasHydrated()) {
-      setHydrated(true);
-    }
-    return unsub;
-  }, []);
+  // Wait for the persisted store to hydrate before deciding first-visit state
+  const hydrated = useSyncExternalStore(
+    (cb) => useOnboardingStore.persist.onFinishHydration(cb),
+    () => useOnboardingStore.persist.hasHydrated(),
+    () => false
+  );
 
-  useEffect(() => {
-    if (hydrated && !hasSeenWelcome) {
-      setVisible(true);
-    }
-  }, [hydrated, hasSeenWelcome]);
-
-  useEffect(() => {
-    if (forceOpen) {
-      setVisible(true);
-    }
-  }, [forceOpen]);
+  // Fully derived: first visit (post-hydration) or explicitly reopened
+  const visible = forceOpen || (hydrated && !hasSeenWelcome);
 
   function dismiss() {
     setWelcomeSeen();
-    setVisible(false);
     onClose?.();
   }
 
@@ -107,9 +65,9 @@ export default function WelcomeOverlay({
 
             {/* Learning path */}
             <div className="mt-6 md:mt-8 flex flex-col items-start gap-0 text-left max-h-[50vh] overflow-y-auto">
-              {experiences.map((exp, i) => (
+              {STEPS.map((exp, i) => (
                 <motion.div
-                  key={i}
+                  key={exp.title}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: 0.4 + i * 0.08 }}
@@ -120,7 +78,7 @@ export default function WelcomeOverlay({
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-xs font-medium text-zinc-400">
                       {i + 1}
                     </div>
-                    {i < experiences.length - 1 && (
+                    {i < STEPS.length - 1 && (
                       <div className="flex-1 w-px bg-zinc-800" />
                     )}
                   </div>

@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useMemo, useState, useCallback, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useMemo, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import Globe from "./Globe";
 import RegionMarker from "./RegionMarker";
+import { type NavigationHint } from "./RegionTooltip";
 import UserLocationMarker from "./UserLocationMarker";
 import { regions, groupRegionsByLocation, getRegionById, type Region } from "@/lib/regions";
 import { latLonToVector3, vector3ToLatLon } from "@/lib/geo-utils";
@@ -24,11 +26,14 @@ function ReadySignal({ onReady }: { onReady?: () => void }) {
  * Smoothly rotates the camera to face a hovered region.
  * Pauses auto-rotate while a region is hovered from the panel.
  */
+// Reused across frames to avoid allocating a Vector3 per frame
+const _cameraGoal = new THREE.Vector3();
+
 function CameraController({
   controlsRef,
   cameraTarget,
 }: {
-  controlsRef: React.RefObject<InstanceType<typeof import("three-stdlib").OrbitControls> | null>;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
   cameraTarget?: { lat: number; lon: number } | null;
 }) {
   const hoveredRegionId = useDatabaseStore((s) => s.hoveredRegionId);
@@ -57,8 +62,8 @@ function CameraController({
       controls.autoRotate = false;
       // Rotate toward region, keeping the user's current zoom distance
       const currentDistance = camera.position.length();
-      const target = targetDir.current.clone().multiplyScalar(currentDistance);
-      camera.position.lerp(target, 0.03);
+      _cameraGoal.copy(targetDir.current).multiplyScalar(currentDistance);
+      camera.position.lerp(_cameraGoal, 0.03);
       // Maintain distance (prevent lerp from shrinking it)
       camera.position.normalize().multiplyScalar(currentDistance);
       controls.update();
@@ -68,11 +73,6 @@ function CameraController({
   });
 
   return null;
-}
-
-interface NavigationHint {
-  text: string;
-  onClick: () => void;
 }
 
 interface GlobeSceneProps {
@@ -109,7 +109,7 @@ export default function GlobeScene({
       : regions;
     return groupRegionsByLocation(filtered);
   }, [activeProvider]);
-  const controlsRef = useRef<InstanceType<typeof import("three-stdlib").OrbitControls> | null>(null);
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const userLocation = useGeolocation();
   const [activeHintKey, setActiveHintKey] = useState<string | null>(null);
 

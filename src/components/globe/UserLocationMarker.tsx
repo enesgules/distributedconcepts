@@ -4,10 +4,10 @@ import { useRef, useMemo, useState, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
 import * as THREE from "three";
-import { latLonToVector3, calculateDistance } from "@/lib/geo-utils";
-import { estimateLatencyStable } from "@/lib/simulation/latency";
+import { latLonToVector3 } from "@/lib/geo-utils";
+import { findNearestRegion } from "@/lib/simulation/latency";
 import { useDatabaseStore } from "@/lib/store/database-store";
-import { regions, getRegionById, type Region } from "@/lib/regions";
+import { regions } from "@/lib/regions";
 import { GLOBE_RADIUS } from "./Globe";
 
 const MARKER_ELEVATION = 0.02;
@@ -15,31 +15,13 @@ const SKY_COLOR = "#38bdf8";
 const ARC_SEGMENTS = 48;
 const RING_COUNT = 3;
 
+// Reused across frames to avoid allocating a Vector3 per frame
+const _camDir = new THREE.Vector3();
+
 interface UserLocationMarkerProps {
   lat: number;
   lon: number;
   showDbConnection?: boolean;
-}
-
-function findNearestRegion(
-  lat: number,
-  lon: number,
-  regionPool: Region[]
-): Region | null {
-  if (regionPool.length === 0) return null;
-
-  let nearest = regionPool[0];
-  let minDist = Infinity;
-
-  for (const region of regionPool) {
-    const dist = calculateDistance(lat, lon, region.lat, region.lon);
-    if (dist < minDist) {
-      minDist = dist;
-      nearest = region;
-    }
-  }
-
-  return nearest;
 }
 
 function buildArc(
@@ -129,13 +111,6 @@ export default function UserLocationMarker({
   const readRegions = useDatabaseStore((s) => s.readRegions);
   const hasDatabase = !!primaryRegion;
 
-  const activeRegions = useMemo(() => {
-    if (!primaryRegion) return [];
-    return [primaryRegion, ...readRegions]
-      .map(getRegionById)
-      .filter((r): r is Region => r !== undefined);
-  }, [primaryRegion, readRegions]);
-
   const position = useMemo(
     () => latLonToVector3(lat, lon, GLOBE_RADIUS + MARKER_ELEVATION),
     [lat, lon]
@@ -143,19 +118,19 @@ export default function UserLocationMarker({
 
   const normal = useMemo(() => position.clone().normalize(), [position]);
 
-  const nearest = useMemo(
-    () => findNearestRegion(lat, lon, showDbConnection && hasDatabase ? activeRegions : regions),
-    [lat, lon, showDbConnection, hasDatabase, activeRegions]
-  );
+  const nearest = useMemo(() => {
+    const pool =
+      showDbConnection && primaryRegion
+        ? [primaryRegion, ...readRegions]
+        : regions.map((r) => r.id);
+    return findNearestRegion(lat, lon, pool);
+  }, [lat, lon, showDbConnection, primaryRegion, readRegions]);
 
-  const latency = useMemo(() => {
-    if (!nearest) return null;
-    return estimateLatencyStable(lat, lon, nearest.lat, nearest.lon);
-  }, [lat, lon, nearest]);
+  const latency = nearest?.latencyMs ?? null;
 
   const arcPoints = useMemo(() => {
     if (!nearest) return null;
-    return buildArc(lat, lon, nearest.lat, nearest.lon);
+    return buildArc(lat, lon, nearest.region.lat, nearest.region.lon);
   }, [lat, lon, nearest]);
 
   const labelPos = useMemo(
@@ -172,7 +147,7 @@ export default function UserLocationMarker({
     }
     // Hide badge when behind the globe
     if (badgeRef.current) {
-      const dot = normal.dot(state.camera.position.clone().normalize());
+      const dot = normal.dot(_camDir.copy(state.camera.position).normalize());
       badgeRef.current.style.opacity = dot > 0.05 ? "1" : "0";
     }
   });
@@ -245,9 +220,9 @@ export default function UserLocationMarker({
             <span className="text-[13px] font-semibold text-sky-400">
               You are here
             </span>
-            {nearest && latency !== null && (
+            {nearest && (
               <div className="mt-1 text-[10px] font-mono text-zinc-400">
-                {latency}ms to {nearest.city}
+                {nearest.latencyMs}ms to {nearest.region.city}
               </div>
             )}
           </div>

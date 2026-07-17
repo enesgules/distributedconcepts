@@ -263,6 +263,9 @@ function ZoneArrow({
 
 // ── Label with cheap camera-facing check (no raycasting) ────────────
 
+// Reused across frames to avoid allocating a Vector3 per label per frame
+const _camDir = new THREE.Vector3();
+
 function ZoneLabel({ zone }: { zone: ZoneResult }) {
   const ref = useRef<HTMLDivElement>(null);
   const labelPos = useMemo(
@@ -274,7 +277,7 @@ function ZoneLabel({ zone }: { zone: ZoneResult }) {
   useFrame(({ camera }) => {
     if (!ref.current) return;
     // Dot product of surface normal vs camera direction — positive = facing camera
-    const dot = normal.dot(camera.position.clone().normalize());
+    const dot = normal.dot(_camDir.copy(camera.position).normalize());
     ref.current.style.opacity = dot > 0.05 ? "1" : "0";
   });
 

@@ -30,22 +30,9 @@ import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { useFailoverStore } from "@/lib/store/failover-store";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { getRegionById, type Region } from "@/lib/regions";
-import { estimateLatencyStable } from "@/lib/simulation/latency";
-import {
-  playSelectSound,
-  playDeselectSound,
-  playConnectionSound,
-} from "@/lib/sounds";
-
-// ── Hint text per step ───────────────────────────────────────────────
-const HINTS: Record<number, string> = {
-  0: "Drag to rotate \u00b7 Scroll to zoom \u00b7 Hover regions to explore",
-  1: "Click regions on the globe or panel to build your database",
-  2: "Execute a write \u2014 or click the globe to move your client first",
-  3: "Execute a read \u2014 or click the globe to move your client first",
-  4: "Adjust the delay slider, then run the race to see eventual consistency",
-  5: "Kill the primary to see automatic failover in action",
-};
+import { findNearestRegion } from "@/lib/simulation/latency";
+import { STEPS, LAST_STEP } from "@/lib/steps";
+import { playSelectSound, playRegionToggleSound } from "@/lib/sounds";
 
 // Fallback client position when geolocation is unavailable (Istanbul \u2014
 // deliberately not an existing region, so routing stays interesting)
@@ -92,9 +79,6 @@ const panelTransition = {
   ease: [0.23, 1, 0.32, 1] as const,
 };
 
-// ── Mobile next step labels ──────────────────────────────────────────
-const NEXT_LABELS = ["Regions", "Write", "Read", "Consistency", "Failover"];
-
 export default function Home() {
   const [activeStep, setActiveStep] = useState(0);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
@@ -123,18 +107,23 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [isLoaded, hasSeenWelcome]);
 
-  // ── Mobile detection ──────────────────────────────────────────────
+  // ── Mobile detection (matches Tailwind's md: breakpoint) ──────────
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   // ── Shareable step URLs ───────────────────────────────────────────
   useEffect(() => {
     const step = Number(new URLSearchParams(window.location.search).get("step"));
-    if (Number.isInteger(step) && step >= 1 && step <= 5) setActiveStep(step);
+    if (Number.isInteger(step) && step >= 1 && step <= LAST_STEP)
+      // One-time sync from the URL after hydration; a lazy initializer would
+      // mismatch the server-rendered step-0 markup
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveStep(step);
   }, []);
 
   useEffect(() => {
@@ -155,7 +144,7 @@ export default function Home() {
       )
         return;
       setActiveStep((s) =>
-        e.key === "ArrowRight" ? Math.min(s + 1, 5) : Math.max(s - 1, 0)
+        e.key === "ArrowRight" ? Math.min(s + 1, LAST_STEP) : Math.max(s - 1, 0)
       );
     };
     window.addEventListener("keydown", onKey);
@@ -211,16 +200,10 @@ export default function Home() {
         return;
       }
       if (activeStep === 1) {
-        if (
-          region.id === primaryRegion ||
-          readRegions.includes(region.id)
-        ) {
-          playDeselectSound();
-        } else if (!primaryRegion) {
-          playSelectSound();
-        } else {
-          playConnectionSound();
-        }
+        playRegionToggleSound(
+          region.id === primaryRegion || readRegions.includes(region.id),
+          primaryRegion !== null
+        );
         toggleRegion(region.id);
       } else if (activeStep >= 2 && activeStep <= 4) {
         playSelectSound();
@@ -252,27 +235,17 @@ export default function Home() {
   );
 
   const nearest = useMemo(() => {
-    if (activeStep !== 4) return null;
-    if (!consistencyClientLocation || allRegionIds.length === 0) return null;
-    let best: { id: string; latency: number } | null = null;
-    for (const id of allRegionIds) {
-      const region = getRegionById(id);
-      if (!region) continue;
-      const latency = estimateLatencyStable(
-        consistencyClientLocation.lat,
-        consistencyClientLocation.lon,
-        region.lat,
-        region.lon
-      );
-      if (!best || latency < best.latency) {
-        best = { id, latency };
-      }
-    }
-    return best;
+    if (activeStep !== 4 || !consistencyClientLocation) return null;
+    return findNearestRegion(
+      consistencyClientLocation.lat,
+      consistencyClientLocation.lon,
+      allRegionIds
+    );
   }, [activeStep, consistencyClientLocation, allRegionIds]);
 
-  const nearestIsPrimary = nearest?.id === primaryRegion;
-  const replicaRegionId = nearest && !nearestIsPrimary ? nearest.id : null;
+  const nearestIsPrimary = nearest?.region.id === primaryRegion;
+  const replicaRegionId =
+    nearest && !nearestIsPrimary ? nearest.region.id : null;
 
   // ── Failover: effective primary + camera target ─────────────────────
   const failoverPhase = useFailoverStore((s) => s.phase);
@@ -339,16 +312,114 @@ export default function Home() {
   const globePrimaryRegion =
     activeStep === 5 ? effectivePrimary : primaryRegion;
 
-  // ── Right panel content (shared between desktop floating + mobile split) ──
-  const hasRightPanel = [1, 2, 3, 5].includes(activeStep) && !isLanding;
-  const rightPanelContent = (
-    <>
-      {activeStep === 1 && <LatencyStats />}
-      {activeStep === 2 && !isMobile && <EventTimeline />}
-      {activeStep === 3 && <LatencyComparison />}
-      {activeStep === 5 && <FailoverTimeline />}
-    </>
-  );
+  // ── Per-step view table ─────────────────────────────────────────────
+  // One row per step: globe overlays, panels, and globe behavior flags.
+  // Step metadata (titles, hints) lives in lib/steps.ts.
+  const stepViews = [
+    // 0 — Globe Explorer
+    {
+      viz: null,
+      left: null,
+      right: null,
+      regionsClickable: true,
+      clientPlaceable: false,
+      showUserDbConnection: false,
+      hideUserLocation: false,
+    },
+    // 1 — Region Builder
+    {
+      viz: (
+        <>
+          <LatencyHeatmap />
+          <ConnectionArcs />
+        </>
+      ),
+      left: <RegionBuilder />,
+      right: <LatencyStats />,
+      regionsClickable: true,
+      clientPlaceable: false,
+      showUserDbConnection: true,
+      hideUserLocation: false,
+    },
+    // 2 — Write Flow
+    {
+      viz: (
+        <>
+          <ConnectionArcs />
+          <WriteFlowVisualization />
+        </>
+      ),
+      left: <WritePanel />,
+      right: isMobile ? null : <EventTimeline />,
+      regionsClickable: true,
+      clientPlaceable: true,
+      showUserDbConnection: false,
+      hideUserLocation: true,
+    },
+    // 3 — Read Flow
+    {
+      viz: (
+        <>
+          <ConnectionArcs />
+          <LatencyHeatmap />
+          <ReadFlowVisualization />
+        </>
+      ),
+      left: <ReadPanel />,
+      right: <LatencyComparison />,
+      regionsClickable: true,
+      clientPlaceable: true,
+      showUserDbConnection: true,
+      hideUserLocation: false,
+    },
+    // 4 — Consistency Race
+    {
+      viz: (
+        <>
+          <ConnectionArcs />
+          {replicaRegionId ? (
+            <ConsistencyRaceVisualization replicaRegionId={replicaRegionId} />
+          ) : (
+            /* Client marker when nearest is primary (no race visualization) */
+            consistencyClientLocation && (
+              <ClientMarker
+                lat={consistencyClientLocation.lat}
+                lon={consistencyClientLocation.lon}
+              />
+            )
+          )}
+        </>
+      ),
+      left: (
+        <ConsistencyRacePanel
+          replicaRegionId={replicaRegionId}
+          nearestIsPrimary={nearestIsPrimary}
+        />
+      ),
+      right: null,
+      regionsClickable: true,
+      clientPlaceable: true,
+      showUserDbConnection: false,
+      hideUserLocation: false,
+    },
+    // 5 — Failover
+    {
+      viz: (
+        <>
+          {failoverPhase === "idle" && <ConnectionArcs />}
+          <FailoverVisualization />
+        </>
+      ),
+      left: <FailoverPanel />,
+      right: <FailoverTimeline />,
+      regionsClickable: false,
+      clientPlaceable: false,
+      showUserDbConnection: false,
+      hideUserLocation: false,
+    },
+  ];
+  const view = stepViews[activeStep];
+  const hasRightPanel = view.right !== null && !isLanding;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0a]">
@@ -360,69 +431,15 @@ export default function Home() {
       >
         <GlobeScene
           onReady={handleGlobeReady}
-          onRegionClick={
-            activeStep <= 4 ? handleRegionClick : undefined
-          }
-          onGlobeClick={
-            activeStep >= 2 && activeStep <= 4
-              ? handleGlobeClick
-              : undefined
-          }
+          onRegionClick={view.regionsClickable ? handleRegionClick : undefined}
+          onGlobeClick={view.clientPlaceable ? handleGlobeClick : undefined}
           selectedRegions={isLanding ? [] : readRegions}
           primaryRegion={isLanding ? null : globePrimaryRegion}
-          showUserDbConnection={activeStep === 1 || activeStep === 3}
-          hideUserLocation={activeStep === 2}
+          showUserDbConnection={view.showUserDbConnection}
+          hideUserLocation={view.hideUserLocation}
           cameraTarget={isLanding ? undefined : cameraTarget}
         >
-          {/* Step 1: Regions */}
-          {activeStep === 1 && (
-            <>
-              <LatencyHeatmap />
-              <ConnectionArcs />
-            </>
-          )}
-
-          {/* Step 2: Write */}
-          {activeStep === 2 && (
-            <>
-              <ConnectionArcs />
-              <WriteFlowVisualization />
-            </>
-          )}
-
-          {/* Step 3: Read */}
-          {activeStep === 3 && (
-            <>
-              <ConnectionArcs />
-              <LatencyHeatmap />
-              <ReadFlowVisualization />
-            </>
-          )}
-
-          {/* Step 4: Consistency */}
-          {activeStep === 4 && (
-            <>
-              <ConnectionArcs />
-              {replicaRegionId ? (
-                <ConsistencyRaceVisualization
-                  replicaRegionId={replicaRegionId}
-                />
-              ) : (
-                /* Client marker when nearest is primary (no race visualization) */
-                consistencyClientLocation && (
-                  <ClientMarker lat={consistencyClientLocation.lat} lon={consistencyClientLocation.lon} />
-                )
-              )}
-            </>
-          )}
-
-          {/* Step 5: Failover */}
-          {activeStep === 5 && (
-            <>
-              {failoverPhase === "idle" && <ConnectionArcs />}
-              <FailoverVisualization />
-            </>
-          )}
+          {view.viz}
         </GlobeScene>
       </div>
 
@@ -484,22 +501,11 @@ export default function Home() {
           >
             {/* Panel content — scrollable on mobile */}
             <div className="flex-1 overflow-y-auto p-4 md:p-0 md:h-full min-h-0">
-              {activeStep === 1 && <RegionBuilder />}
-              {activeStep === 2 && <WritePanel />}
-              {activeStep === 3 && <ReadPanel />}
-              {activeStep === 4 && (
-                <ConsistencyRacePanel
-                  replicaRegionId={replicaRegionId}
-                  nearestIsPrimary={nearestIsPrimary}
-                />
-              )}
-              {activeStep === 5 && <FailoverPanel />}
+              {view.left}
 
               {/* Mobile-only: right panel content stacked below left panel */}
               {hasRightPanel && (
-                <div className="md:hidden mt-3">
-                  {rightPanelContent}
-                </div>
+                <div className="md:hidden mt-3">{view.right}</div>
               )}
             </div>
 
@@ -526,9 +532,9 @@ export default function Home() {
 
               {/* Next / Restart button */}
               <button
-                onClick={() => activeStep >= 5 ? setActiveStep(0) : setActiveStep((s) => Math.min(s + 1, 5))}
+                onClick={() => activeStep >= LAST_STEP ? setActiveStep(0) : setActiveStep((s) => Math.min(s + 1, LAST_STEP))}
                 className="shrink-0 flex items-center justify-center h-8 w-8 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 cursor-pointer transition-colors hover:border-emerald-500/50 hover:text-emerald-400"
-                aria-label={activeStep >= 5 ? "Start over" : "Next step"}
+                aria-label={activeStep >= LAST_STEP ? "Start over" : "Next step"}
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -551,7 +557,7 @@ export default function Home() {
             transition={panelTransition}
             className="hidden md:block absolute top-14 right-4 z-20 w-[320px]"
           >
-            {rightPanelContent}
+            {view.right}
           </motion.div>
         )}
       </AnimatePresence>
@@ -568,7 +574,7 @@ export default function Home() {
           activeStep={activeStep}
           onStepChange={setActiveStep}
         />
-        <p className="text-xs text-zinc-600">{HINTS[activeStep]}</p>
+        <p className="text-xs text-zinc-600">{STEPS[activeStep].hint}</p>
       </div>
 
       {/* Mobile: Landing nav (step 0 only, since steps 1-5 have nav in panel) */}
@@ -597,7 +603,7 @@ export default function Home() {
       {/* Next step button — desktop only */}
       <NextStepButton
         activeStep={activeStep}
-        onNext={() => setActiveStep((s) => Math.min(s + 1, 5))}
+        onNext={() => setActiveStep((s) => Math.min(s + 1, LAST_STEP))}
         onRestart={() => setActiveStep(0)}
         className="hidden md:flex"
       />

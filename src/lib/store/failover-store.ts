@@ -10,12 +10,6 @@ export type FailoverPhase =
   | "recovering"
   | "complete";
 
-export interface ElectionVote {
-  fromRegionId: string;
-  toRegionId: string;
-  progress: number;
-}
-
 export interface QueuedRequest {
   id: string;
   command: string;
@@ -31,7 +25,7 @@ export interface FailoverEvent {
   type: FailoverEventType;
 }
 
-interface FailoverState {
+interface FailoverData {
   phase: FailoverPhase;
 
   failedRegionId: string | null;
@@ -41,8 +35,6 @@ interface FailoverState {
   arcBreakProgress: number;
   detectionProgress: number;
   electionProgress: number;
-  electionVotes: ElectionVote[];
-  candidateRegionIds: string[];
   recoveryProgress: number;
   drainingProgress: number;
 
@@ -58,14 +50,15 @@ interface FailoverState {
 
   originalPrimaryId: string | null;
   originalReadRegions: string[];
+}
 
+interface FailoverState extends FailoverData {
   killPrimary: () => void;
   setPhase: (phase: FailoverPhase) => void;
   setFailureFlashProgress: (p: number) => void;
   setArcBreakProgress: (p: number) => void;
   setDetectionProgress: (p: number) => void;
   setElectionProgress: (p: number) => void;
-  setElectionVoteProgress: (fromId: string, progress: number) => void;
   onElectionComplete: () => void;
   setRecoveryProgress: (p: number) => void;
   setDrainingProgress: (p: number) => void;
@@ -75,44 +68,33 @@ interface FailoverState {
   reset: () => void;
 }
 
-const initialState = {
-  phase: "idle" as FailoverPhase,
-  failedRegionId: null as string | null,
-  newPrimaryId: null as string | null,
+const initialState: FailoverData = {
+  phase: "idle",
+  failedRegionId: null,
+  newPrimaryId: null,
   failureFlashProgress: 0,
   arcBreakProgress: 0,
   detectionProgress: 0,
   electionProgress: 0,
-  electionVotes: [] as ElectionVote[],
-  candidateRegionIds: [] as string[],
   recoveryProgress: 0,
   drainingProgress: 0,
-  queuedRequests: [] as QueuedRequest[],
+  queuedRequests: [],
   requestQueueVisible: false,
-  events: [] as FailoverEvent[],
+  events: [],
   downtimeMs: 0,
   detectionTimeMs: 800,
   electionTimeMs: 1200,
   recoveryTimeMs: 600,
-  originalPrimaryId: null as string | null,
-  originalReadRegions: [] as string[],
+  originalPrimaryId: null,
+  originalReadRegions: [],
 };
 
 export const useFailoverStore = create<FailoverState>((set, get) => ({
   ...initialState,
 
   killPrimary: () => {
-    const dbStore = useDatabaseStore.getState();
-    const { primaryRegion, readRegions } = dbStore;
+    const { primaryRegion, readRegions } = useDatabaseStore.getState();
     if (!primaryRegion || readRegions.length === 0) return;
-
-    // The primary region has 2 in-region replicas for HA.
-    // Leader election happens WITHIN the same region — the new primary
-    // stays in the same geographic location.
-    const newPrimary = primaryRegion;
-
-    // No cross-region election votes — election is internal to the primary region
-    const votes: ElectionVote[] = [];
 
     // Generate queued requests at client locations (cities without database regions)
     const requests: QueuedRequest[] = [
@@ -122,24 +104,14 @@ export const useFailoverStore = create<FailoverState>((set, get) => ({
     ];
 
     set({
+      ...initialState,
       phase: "failure",
       failedRegionId: primaryRegion,
-      newPrimaryId: newPrimary,
-      failureFlashProgress: 0,
-      arcBreakProgress: 0,
-      detectionProgress: 0,
-      electionProgress: 0,
-      electionVotes: votes,
-      candidateRegionIds: [],
-      recoveryProgress: 0,
-      drainingProgress: 0,
+      // Leader election happens WITHIN the same region — the new primary
+      // stays in the same geographic location.
+      newPrimaryId: primaryRegion,
       queuedRequests: requests,
-      requestQueueVisible: false,
       events: [{ time: 0, label: "Primary node failed!", type: "failure" }],
-      downtimeMs: 0,
-      detectionTimeMs: 800,
-      electionTimeMs: 1200,
-      recoveryTimeMs: 600,
       originalPrimaryId: primaryRegion,
       originalReadRegions: [...readRegions],
     });
@@ -150,13 +122,6 @@ export const useFailoverStore = create<FailoverState>((set, get) => ({
   setArcBreakProgress: (p) => set({ arcBreakProgress: p }),
   setDetectionProgress: (p) => set({ detectionProgress: p }),
   setElectionProgress: (p) => set({ electionProgress: p }),
-
-  setElectionVoteProgress: (fromId, progress) =>
-    set((state) => ({
-      electionVotes: state.electionVotes.map((v) =>
-        v.fromRegionId === fromId ? { ...v, progress } : v
-      ),
-    })),
 
   onElectionComplete: () => {
     const state = get();
@@ -183,13 +148,12 @@ export const useFailoverStore = create<FailoverState>((set, get) => ({
 
   reset: () => {
     const state = get();
-    // Restore original database state
+    // Restore original database state in a single update
     if (state.originalPrimaryId) {
-      const db = useDatabaseStore.getState();
-      db.setPrimary(state.originalPrimaryId);
-      for (const id of state.originalReadRegions) {
-        db.addReadRegion(id);
-      }
+      useDatabaseStore.setState({
+        primaryRegion: state.originalPrimaryId,
+        readRegions: [...state.originalReadRegions],
+      });
     }
     set({ ...initialState });
   },

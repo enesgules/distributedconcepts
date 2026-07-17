@@ -12,8 +12,12 @@ interface ClientMarkerProps {
   lon: number;
 }
 
+// Reused across frames to avoid allocating a Vector3 per frame
+const _camDir = new THREE.Vector3();
+
 export default function ClientMarker({ lat, lon }: ClientMarkerProps) {
-  const ringRef = useRef<THREE.Mesh>(null);
+  const ringRef =
+    useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
   const glowRef = useRef<THREE.Mesh>(null);
   const labelRef = useRef<HTMLDivElement>(null);
 
@@ -47,13 +51,12 @@ export default function ClientMarker({ lat, lon }: ClientMarkerProps) {
       const cycle = (t * 0.8) % 1;
       const scale = 1 + cycle * 3;
       ringRef.current.scale.set(scale, scale, 1);
-      (ringRef.current.material as THREE.MeshBasicMaterial).opacity =
-        0.4 * (1 - cycle);
+      ringRef.current.material.opacity = 0.4 * (1 - cycle);
     }
 
     // Hide label behind globe
     if (labelRef.current) {
-      const dot = normal.dot(camera.position.clone().normalize());
+      const dot = normal.dot(_camDir.copy(camera.position).normalize());
       labelRef.current.style.opacity = dot > 0.05 ? "1" : "0";
     }
   });

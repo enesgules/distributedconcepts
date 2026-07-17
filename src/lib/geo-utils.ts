@@ -1,5 +1,11 @@
 import * as THREE from "three";
 
+/** A geographic coordinate. Shared by the flow stores and geolocation hook. */
+export interface LatLon {
+  lat: number;
+  lon: number;
+}
+
 const DEG_TO_RAD = Math.PI / 180;
 const EARTH_RADIUS_KM = 6371;
 

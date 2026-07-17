@@ -3,7 +3,7 @@
 import { Html } from "@react-three/drei";
 import type { Region } from "@/lib/regions";
 
-interface NavigationHint {
+export interface NavigationHint {
   text: string;
   onClick: () => void;
 }

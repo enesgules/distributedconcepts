@@ -1,9 +1,14 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useFailoverStore, type FailoverPhase } from "@/lib/store/failover-store";
+import { motion } from "framer-motion";
+import {
+  useFailoverStore,
+  type FailoverPhase,
+  type FailoverEventType,
+} from "@/lib/store/failover-store";
+import TimelineEvents, { type TimelineStyle } from "./TimelineEvents";
 
-const typeStyles: Record<string, { icon: string; color: string }> = {
+const typeStyles: Record<FailoverEventType, TimelineStyle> = {
   failure: { icon: "✕", color: "text-red-400" },
   detect: { icon: "⚠", color: "text-amber-400" },
   election: { icon: "↻", color: "text-amber-400" },
@@ -66,32 +71,7 @@ export default function FailoverTimeline() {
         Failover Timeline
       </p>
 
-      <div className="space-y-1.5">
-        <AnimatePresence>
-          {events.map((event, i) => {
-            const style = typeStyles[event.type] ?? typeStyles.failure;
-            return (
-              <motion.div
-                key={`${event.time}-${event.type}-${i}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: 0.05 * i }}
-                className="flex items-start gap-3"
-              >
-                <span className="w-10 shrink-0 text-right font-mono text-[11px] text-zinc-500">
-                  {event.time}ms
-                </span>
-                <span className={`shrink-0 text-sm ${style.color}`}>
-                  {style.icon}
-                </span>
-                <span className="text-[11px] text-zinc-400">
-                  {event.label}
-                </span>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+      <TimelineEvents events={events} typeStyles={typeStyles} />
     </motion.div>
   );
 }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LatLon } from "@/lib/geo-utils";
 
 export type ReadPhase =
   | "idle"
@@ -8,7 +9,7 @@ export type ReadPhase =
   | "complete";
 
 interface ReadFlowState {
-  clientLocation: { lat: number; lon: number } | null;
+  clientLocation: LatLon | null;
   phase: ReadPhase;
   fetchProgress: number;
   responseProgress: number;
@@ -44,18 +45,8 @@ export const useReadFlowStore = create<ReadFlowState>((set, get) => ({
   response: null,
 
   setClientLocation: (lat, lon) => {
-    const state = get();
-    if (state.phase !== "idle") {
-      set({
-        phase: "idle",
-        fetchProgress: 0,
-        responseProgress: 0,
-        nearestRegionId: null,
-        nearestLatencyMs: 0,
-        primaryLatencyMs: 0,
-        response: null,
-      });
-    }
+    // Reset any in-progress animation before moving the client
+    if (get().phase !== "idle") get().reset();
     set({ clientLocation: { lat, lon } });
   },
 

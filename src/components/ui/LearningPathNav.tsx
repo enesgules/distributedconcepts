@@ -2,15 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
-
-const experiences = [
-  { shortTitle: "Globe", description: "Explore regions" },
-  { shortTitle: "Regions", description: "Build database" },
-  { shortTitle: "Write", description: "Replicate data" },
-  { shortTitle: "Read", description: "Nearest routing" },
-  { shortTitle: "Consistency", description: "Stale reads" },
-  { shortTitle: "Failover", description: "Leader election" },
-];
+import { STEPS } from "@/lib/steps";
 
 interface LearningPathNavProps {
   activeStep?: number;
@@ -33,7 +25,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
       }
     >
       <div className={`flex items-center ${compact ? "gap-0" : "gap-1"}`}>
-        {experiences.map((exp, i) => {
+        {STEPS.map((exp, i) => {
           const isActive = i === activeStep;
           const isClickable = !isActive && onStepChange;
           const isCompleted = completedSteps.includes(i) && !isActive;
@@ -71,7 +63,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
                     {exp.shortTitle}
                   </p>
                   <p className="hidden text-[10px] text-zinc-700 lg:block">
-                    {exp.description}
+                    {exp.tagline}
                   </p>
                 </div>
               )}
@@ -79,7 +71,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
           );
 
           return (
-            <div key={i} className="flex items-center">
+            <div key={exp.shortTitle} className="flex items-center">
               <button
                 onClick={isClickable ? () => onStepChange(i) : undefined}
                 className={`group ${isClickable ? "cursor-pointer" : "cursor-default"}`}
@@ -88,7 +80,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
               </button>
 
               {/* Connector */}
-              {i < experiences.length - 1 && (
+              {i < STEPS.length - 1 && (
                 <div className={`h-px border-t border-dashed border-zinc-800 ${compact ? "w-1" : "w-2 md:w-4"}`} />
               )}
             </div>

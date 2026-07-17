@@ -4,12 +4,18 @@ import { useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
-import { getRegionById, type Region } from "@/lib/regions";
-import {
-  estimateLatency,
-  estimateLatencyStable,
-} from "@/lib/simulation/latency";
+import { getRegionById } from "@/lib/regions";
+import { estimateLatency, findNearestRegion } from "@/lib/simulation/latency";
 import { playPacketSendSound } from "@/lib/sounds";
+import {
+  FlowPanel,
+  RegionSummary,
+  ClientLocationBlock,
+  CommandTerminal,
+  LatencyCounter,
+  ExecuteFooter,
+  SectionLabel,
+} from "./FlowPanel";
 
 function InsightInline() {
   const nearestRegionId = useReadFlowStore((s) => s.nearestRegionId);
@@ -96,22 +102,8 @@ export default function ReadPanel() {
   );
 
   const nearest = useMemo(() => {
-    if (!clientLocation || allRegionIds.length === 0) return null;
-    let best: { id: string; latency: number; region: Region } | null = null;
-    for (const id of allRegionIds) {
-      const region = getRegionById(id);
-      if (!region) continue;
-      const latency = estimateLatencyStable(
-        clientLocation.lat,
-        clientLocation.lon,
-        region.lat,
-        region.lon
-      );
-      if (!best || latency < best.latency) {
-        best = { id, latency, region };
-      }
-    }
-    return best;
+    if (!clientLocation) return null;
+    return findNearestRegion(clientLocation.lat, clientLocation.lon, allRegionIds);
   }, [clientLocation, allRegionIds]);
 
   const canExecute =
@@ -138,7 +130,7 @@ export default function ReadPanel() {
     playPacketSendSound();
     useReadFlowStore
       .getState()
-      .startRead(nearest.id, nearestLatency, primaryLatency);
+      .startRead(nearest.region.id, nearestLatency, primaryLatency);
   }, [clientLocation, nearest, primary, primaryRegion]);
 
   const handleReplay = useCallback(() => {
@@ -153,174 +145,53 @@ export default function ReadPanel() {
         : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4 }}
-      className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md"
+    <FlowPanel
+      title="Read Flow"
+      description="See how reads route to the nearest replica for low latency"
+      footer={
+        <ExecuteFooter
+          complete={phase === "complete"}
+          onExecute={handleExecute}
+          onReplay={handleReplay}
+          disabled={!canExecute}
+          busy={isAnimating}
+        />
+      }
     >
-      {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-sm font-semibold text-zinc-200">Read Flow</h2>
-        <p className="mt-1 text-[11px] text-zinc-500">
-          See how reads route to the nearest replica for low latency
-        </p>
-      </div>
+      <RegionSummary />
+      <ClientLocationBlock location={clientLocation} />
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-        {/* Region Summary */}
+      {/* Nearest Region (real-time) */}
+      {nearest && phase === "idle" && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">
-            Database Config
-          </p>
-          <div className="space-y-2">
-            {primary && (
-              <div className="flex items-center gap-2">
-                <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-                  Primary
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-300">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  {primary.city}
-                </span>
-              </div>
-            )}
-            {readRegions.length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                  Read
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {readRegions.map((id) => {
-                    const region = getRegionById(id);
-                    if (!region) return null;
-                    return (
-                      <span
-                        key={id}
-                        className="inline-flex items-center gap-1.5 text-[11px] text-zinc-300"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        {region.city}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Client Location */}
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">
-            Client Location
-          </p>
-          {clientLocation ? (
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-cyan-400" />
-              <span className="font-mono text-xs text-zinc-300">
-                {clientLocation.lat.toFixed(1)}°,{" "}
-                {clientLocation.lon.toFixed(1)}°
-              </span>
-            </div>
-          ) : (
-            <p className="text-[11px] text-zinc-500 italic">
-              Click anywhere on the globe to set your location
-            </p>
-          )}
-        </div>
-
-        {/* Nearest Region (real-time) */}
-        {nearest && phase === "idle" && (
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">
-              Nearest Region
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-emerald-400 text-xs">→</span>
-              <span className="text-[11px] text-zinc-300">
-                {nearest.region.city}
-              </span>
-              <span className="font-mono text-[11px] text-emerald-400">
-                ~{nearest.latency}ms
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Terminal */}
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">
-            Command
-          </p>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-red-400 shrink-0">
-                db&gt;
-              </span>
-              <input
-                type="text"
-                value={command}
-                onChange={(e) =>
-                  useReadFlowStore.getState().setCommand(e.target.value)
-                }
-                disabled={phase !== "idle"}
-                className="flex-1 bg-transparent font-mono text-xs text-zinc-200 outline-none placeholder-zinc-600 disabled:opacity-50"
-                spellCheck={false}
-              />
-            </div>
-            {response && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-2 font-mono text-xs text-emerald-400"
-              >
-                {response}
-              </motion.div>
-            )}
-          </div>
-        </div>
-
-        {/* Latency counter */}
-        {displayedLatency !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-baseline gap-2"
-          >
-            <span className="font-mono text-lg font-bold text-cyan-400">
-              {displayedLatency}ms
+          <SectionLabel>Nearest Region</SectionLabel>
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 text-xs">→</span>
+            <span className="text-[11px] text-zinc-300">
+              {nearest.region.city}
             </span>
-            <span className="text-[10px] text-zinc-500">
-              {phase === "fetching" ? "fetching..." : "read latency"}
+            <span className="font-mono text-[11px] text-emerald-400">
+              ~{nearest.latencyMs}ms
             </span>
-          </motion.div>
-        )}
+          </div>
+        </div>
+      )}
 
-        {/* Key Insight — shown after animation completes */}
-        {phase === "complete" && <InsightInline />}
-      </div>
+      <CommandTerminal
+        value={command}
+        onChange={(cmd) => useReadFlowStore.getState().setCommand(cmd)}
+        disabled={phase !== "idle"}
+        response={response}
+      />
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-zinc-800/50 px-5 py-4">
-        {phase === "complete" ? (
-          <button
-            onClick={handleReplay}
-            className="w-full rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
-          >
-            Replay
-          </button>
-        ) : (
-          <button
-            onClick={handleExecute}
-            disabled={!canExecute || isAnimating}
-            className="w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-400/20 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {isAnimating ? "Executing..." : "Execute"}
-          </button>
-        )}
-      </div>
-    </motion.div>
+      {displayedLatency !== null && (
+        <LatencyCounter
+          value={displayedLatency}
+          label={phase === "fetching" ? "fetching..." : "read latency"}
+        />
+      )}
+
+      {phase === "complete" && <InsightInline />}
+    </FlowPanel>
   );
 }

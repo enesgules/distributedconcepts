@@ -7,7 +7,7 @@ export const contentType = "image/png";
 export default function Icon() {
   return new ImageResponse(
     (
-      // eslint-disable-next-line @next/next/no-img-element
+       
       <img
         src={globeMarkDataUri()}
         width={180}

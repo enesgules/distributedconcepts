@@ -3,20 +3,15 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
-import * as THREE from "three";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
+import { advance, FLASH_PAUSE_MS } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
 import { playAckSound, playReplicateSound, playReplicaArriveSound } from "@/lib/sounds";
-
-// Scale factor: real latency (ms) * ANIMATION_SPEED = animation duration (s)
-// 200ms * 0.003 = 0.6s animation
-const ANIMATION_SPEED = 0.003;
-const MIN_DURATION = 0.3;
 
 function ReplicationArc({
   primaryLat,
@@ -102,13 +97,10 @@ export default function WriteFlowVisualization() {
     const store = useWriteFlowStore.getState();
 
     if (store.phase === "to-primary") {
-      const duration = Math.max(
-        store.primaryLatencyMs * ANIMATION_SPEED,
-        MIN_DURATION
-      );
-      const newProgress = Math.min(
-        store.primaryProgress + delta / duration,
-        1
+      const newProgress = advance(
+        store.primaryProgress,
+        delta,
+        store.primaryLatencyMs
       );
       store.setPrimaryProgress(newProgress);
 
@@ -127,7 +119,7 @@ export default function WriteFlowVisualization() {
               type: "replicate",
             });
           }
-        }, 400);
+        }, FLASH_PAUSE_MS);
       }
     }
 
@@ -136,14 +128,7 @@ export default function WriteFlowVisualization() {
       for (const replica of store.replicaStatuses) {
         if (replica.arrived) continue;
         allArrived = false;
-        const duration = Math.max(
-          replica.latencyMs * ANIMATION_SPEED,
-          MIN_DURATION
-        );
-        const newProgress = Math.min(
-          replica.progress + delta / duration,
-          1
-        );
+        const newProgress = advance(replica.progress, delta, replica.latencyMs);
         store.setReplicaProgress(replica.regionId, newProgress);
         if (newProgress >= 1 && !replica.arrived) {
           playReplicaArriveSound();
