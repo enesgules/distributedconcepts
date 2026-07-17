@@ -3,7 +3,12 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
-import { regions, getRegionById, type Region } from "@/lib/regions";
+import {
+  regions,
+  getRegionById,
+  CONTINENT_ORDER,
+  type Region,
+} from "@/lib/regions";
 import { estimateLatencyBetweenRegions } from "@/lib/simulation/latency";
 import { playSelectSound, playDeselectSound, playConnectionSound } from "@/lib/sounds";
 
@@ -13,38 +18,10 @@ interface ContinentGroup {
 }
 
 function groupByContinent(regionList: Region[] = regions): ContinentGroup[] {
-  const groups: Record<string, Region[]> = {
-    "North America": [],
-    "South America": [],
-    Europe: [],
-    "Asia Pacific": [],
-    Africa: [],
-  };
-
-  for (const r of regionList) {
-    if (
-      r.country === "USA" ||
-      r.country === "Canada"
-    ) {
-      groups["North America"].push(r);
-    } else if (r.country === "Brazil") {
-      groups["South America"].push(r);
-    } else if (
-      ["Ireland", "UK", "Germany", "Belgium"].includes(r.country)
-    ) {
-      groups["Europe"].push(r);
-    } else if (
-      ["India", "Japan", "Singapore", "Australia"].includes(r.country)
-    ) {
-      groups["Asia Pacific"].push(r);
-    } else if (r.country === "South Africa") {
-      groups["Africa"].push(r);
-    }
-  }
-
-  return Object.entries(groups)
-    .filter(([, regs]) => regs.length > 0)
-    .map(([name, regs]) => ({ name, regions: regs }));
+  return CONTINENT_ORDER.map((name) => ({
+    name,
+    regions: regionList.filter((r) => r.continent === name),
+  })).filter((g) => g.regions.length > 0);
 }
 
 function RegionListItem({

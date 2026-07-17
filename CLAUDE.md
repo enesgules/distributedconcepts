@@ -62,13 +62,13 @@ Single-page app — all 6 experiences render from `src/app/page.tsx` with `activ
 - Read replicas continue serving (possibly stale) reads during failover
 - Only writes are briefly interrupted
 
-### Available Regions (14 AWS + 4 GCP = 18 total)
+### Available Regions (26 AWS + 10 GCP = 36 total)
 
-Defined in `src/lib/regions.ts`. Co-located regions (same lat/lon, different providers) are grouped by `groupRegionsByLocation()`.
+Defined in `src/lib/regions.ts`. Each region has a `continent` field (drives RegionBuilder grouping). Coordinates point at real data center locations (e.g. AWS Oregon = Boardman, GCP Finland = Hamina). Co-located regions (same lat/lon, different providers) are grouped by `groupRegionsByLocation()`.
 
-**AWS (14):** us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-northeast-1, ap-southeast-1, ap-southeast-2, sa-east-1, af-south-1
+**AWS (26):** us-east-1, us-east-2, us-west-1, us-west-2, ca-central-1, ca-west-1, mx-central-1, sa-east-1, eu-west-1, eu-west-2, eu-west-3, eu-central-1, eu-central-2, eu-north-1, eu-south-1, il-central-1, me-central-1, ap-south-1, ap-northeast-1, ap-northeast-2, ap-northeast-3, ap-east-1, ap-southeast-1, ap-southeast-2, ap-southeast-3, af-south-1
 
-**GCP (4):** us-east4, us-central1, europe-west1, asia-northeast1
+**GCP (10):** us-east4, us-central1, us-west1, europe-west1, europe-west4, europe-north1, asia-northeast1, asia-southeast1, southamerica-east1, australia-southeast1
 
 ## Experiences
 

@@ -2,7 +2,7 @@
 
 An interactive 3D learning platform that teaches distributed database concepts — replication, consistency, and failover — through hands-on visualizations on a living globe.
 
-![Demo: building a database, executing a write, and watching failover](docs/demo.gif)
+![Distributed Concepts — interactive 3D globe with real AWS and GCP region locations](docs/screenshot.jpg)
 
 Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?step=5`.
 
