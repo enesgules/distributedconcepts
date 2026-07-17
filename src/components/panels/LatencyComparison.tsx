@@ -12,7 +12,8 @@ export default function LatencyComparison() {
   const primaryLatencyMs = useReadFlowStore((s) => s.primaryLatencyMs);
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
 
-  if (phase !== "complete") return null;
+  // Show as soon as the response is heading back — the payoff shouldn't lag
+  if (phase !== "responding" && phase !== "complete") return null;
 
   const nearestRegion = nearestRegionId
     ? getRegionById(nearestRegionId)
@@ -34,7 +35,7 @@ export default function LatencyComparison() {
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       className="rounded-2xl border border-zinc-800/50 bg-zinc-950/90 px-5 py-4 backdrop-blur-md"
     >
       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-3">

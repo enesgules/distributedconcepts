@@ -155,10 +155,10 @@ function getSunDirection(date: Date): THREE.Vector3 {
 
 export default function Globe() {
   const [dayTexture, nightTexture, specularTexture, brcTexture] = useTexture([
-    "/textures/earth_day_8k.jpg",
-    "/textures/earth_night_8k.jpg",
+    "/textures/earth_day_4k.jpg",
+    "/textures/earth_night_4k.jpg",
     "/textures/earth_specular_2048.jpg",
-    "/textures/earth_bump_roughness_clouds_4096.jpg",
+    "/textures/earth_bump_roughness_clouds_2048.jpg",
   ]);
 
   const sunDirection = useMemo(() => getSunDirection(new Date()), []);

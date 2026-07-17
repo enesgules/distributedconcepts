@@ -41,11 +41,31 @@ import {
 const HINTS: Record<number, string> = {
   0: "Drag to rotate \u00b7 Scroll to zoom \u00b7 Hover regions to explore",
   1: "Click regions on the globe or panel to build your database",
-  2: "Click the globe to place your client, then execute a write",
-  3: "Click the globe to place your client, then execute a read",
+  2: "Execute a write \u2014 or click the globe to move your client first",
+  3: "Execute a read \u2014 or click the globe to move your client first",
   4: "Adjust the delay slider, then run the race to see eventual consistency",
   5: "Kill the primary to see automatic failover in action",
 };
+
+// Fallback client position when geolocation is unavailable (Istanbul \u2014
+// deliberately not an existing region, so routing stays interesting)
+const DEFAULT_CLIENT = { lat: 41.0, lon: 28.98 };
+
+// Set the client in all three flow stores so placing it once carries
+// across the Write, Read, and Consistency steps. Skips stores already at
+// that position to avoid resetting a finished animation.
+function setSharedClientLocation(lat: number, lon: number) {
+  for (const store of [
+    useWriteFlowStore,
+    useReadFlowStore,
+    useConsistencyRaceStore,
+  ] as const) {
+    const cur = store.getState().clientLocation;
+    if (!cur || cur.lat !== lat || cur.lon !== lon) {
+      store.getState().setClientLocation(lat, lon);
+    }
+  }
+}
 
 // ── Panel animation variants ─────────────────────────────────────────
 const desktopLeftPanelVariants = {
@@ -66,7 +86,11 @@ const rightPanelVariants = {
   exit: { x: 100, opacity: 0 },
 };
 
-const panelTransition = { type: "spring" as const, damping: 25, stiffness: 200 };
+const panelTransition = {
+  type: "tween" as const,
+  duration: 0.22,
+  ease: [0.23, 1, 0.32, 1] as const,
+};
 
 // ── Mobile next step labels ──────────────────────────────────────────
 const NEXT_LABELS = ["Regions", "Write", "Read", "Consistency", "Failover"];
@@ -164,20 +188,16 @@ export default function Home() {
     }
   }, [activeStep]);
 
-  // Write step: auto-place client from geolocation
+  // Steps 2-4: auto-place the shared client (previous placement → geolocation
+  // → fixed fallback) so Execute/Run Race are never dead on arrival
   useEffect(() => {
-    if (activeStep !== 2) return;
-    if (geo && !useWriteFlowStore.getState().clientLocation) {
-      useWriteFlowStore.getState().setClientLocation(geo.lat, geo.lon);
-    }
-  }, [activeStep, geo]);
-
-  // Consistency step: auto-place client from geolocation
-  useEffect(() => {
-    if (activeStep !== 4) return;
-    if (geo && !useConsistencyRaceStore.getState().clientLocation) {
-      useConsistencyRaceStore.getState().setClientLocation(geo.lat, geo.lon);
-    }
+    if (activeStep < 2 || activeStep > 4) return;
+    const existing =
+      useWriteFlowStore.getState().clientLocation ??
+      useReadFlowStore.getState().clientLocation ??
+      useConsistencyRaceStore.getState().clientLocation;
+    const loc = existing ?? geo ?? DEFAULT_CLIENT;
+    setSharedClientLocation(loc.lat, loc.lon);
   }, [activeStep, geo]);
 
   // ── Region click handler (step-dependent) ───────────────────────────
@@ -202,21 +222,9 @@ export default function Home() {
           playConnectionSound();
         }
         toggleRegion(region.id);
-      } else if (activeStep === 2) {
+      } else if (activeStep >= 2 && activeStep <= 4) {
         playSelectSound();
-        useWriteFlowStore
-          .getState()
-          .setClientLocation(region.lat, region.lon);
-      } else if (activeStep === 3) {
-        playSelectSound();
-        useReadFlowStore
-          .getState()
-          .setClientLocation(region.lat, region.lon);
-      } else if (activeStep === 4) {
-        playSelectSound();
-        useConsistencyRaceStore
-          .getState()
-          .setClientLocation(region.lat, region.lon);
+        setSharedClientLocation(region.lat, region.lon);
       }
     },
     [activeStep, primaryRegion, readRegions, toggleRegion]
@@ -225,15 +233,9 @@ export default function Home() {
   // ── Globe click handler (steps 2-4) ─────────────────────────────────
   const handleGlobeClick = useCallback(
     (lat: number, lon: number) => {
-      if (activeStep === 2) {
+      if (activeStep >= 2 && activeStep <= 4) {
         playSelectSound();
-        useWriteFlowStore.getState().setClientLocation(lat, lon);
-      } else if (activeStep === 3) {
-        playSelectSound();
-        useReadFlowStore.getState().setClientLocation(lat, lon);
-      } else if (activeStep === 4) {
-        playSelectSound();
-        useConsistencyRaceStore.getState().setClientLocation(lat, lon);
+        setSharedClientLocation(lat, lon);
       }
     },
     [activeStep]
@@ -307,6 +309,31 @@ export default function Home() {
     }
     return null;
   }, [activeStep, failoverPhase, primaryRegion, newPrimaryId]);
+
+  // ── Step completion tracking (drives nav checkmarks) ────────────────
+  const writePhase = useWriteFlowStore((s) => s.phase);
+  const readPhase = useReadFlowStore((s) => s.phase);
+  const racePhase = useConsistencyRaceStore((s) => s.phase);
+  const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
+
+  useEffect(() => {
+    if (activeStep > 0) markStepComplete(0);
+    if (primaryRegion && readRegions.length > 0) markStepComplete(1);
+    if (writePhase === "complete") markStepComplete(2);
+    if (readPhase === "complete") markStepComplete(3);
+    if (racePhase === "result" || racePhase === "complete")
+      markStepComplete(4);
+    if (failoverPhase === "complete") markStepComplete(5);
+  }, [
+    activeStep,
+    primaryRegion,
+    readRegions,
+    writePhase,
+    readPhase,
+    racePhase,
+    failoverPhase,
+    markStepComplete,
+  ]);
 
   // ── Derive GlobeScene props per step ────────────────────────────────
   const globePrimaryRegion =
@@ -442,7 +469,9 @@ export default function Home() {
       {/* ═══ Learn UI (steps 1-5) ═══ */}
 
       {/* Left panel — desktop: sidebar from left, mobile: split-screen bottom half */}
-      <AnimatePresence mode="wait">
+      {/* Sync mode (no mode="wait"): waiting for exit can drop the incoming
+          panel entirely when steps change rapidly (arrow keys) */}
+      <AnimatePresence>
         {!isLanding && (
           <motion.div
             key={`left-${activeStep}`}
@@ -511,7 +540,7 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Top-right panel — desktop only, slides in from right */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {hasRightPanel && (
           <motion.div
             key={`right-${activeStep}`}

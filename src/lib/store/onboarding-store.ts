@@ -3,18 +3,25 @@ import { persist } from "zustand/middleware";
 
 interface OnboardingState {
   hasSeenWelcome: boolean;
+  completedSteps: number[];
 
   setWelcomeSeen: () => void;
+  markStepComplete: (step: number) => void;
   resetProgress: () => void;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       hasSeenWelcome: false,
+      completedSteps: [],
 
       setWelcomeSeen: () => set({ hasSeenWelcome: true }),
-      resetProgress: () => set({ hasSeenWelcome: false }),
+      markStepComplete: (step) => {
+        if (get().completedSteps.includes(step)) return;
+        set({ completedSteps: [...get().completedSteps, step] });
+      },
+      resetProgress: () => set({ hasSeenWelcome: false, completedSteps: [] }),
     }),
     {
       name: "distributed-concepts-onboarding",

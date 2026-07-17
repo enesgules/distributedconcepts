@@ -194,6 +194,34 @@ export default function FailoverPanel() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Journey complete (on failover complete) */}
+        <AnimatePresence>
+          {phase === "complete" && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+              className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 px-4 py-3"
+            >
+              <p className="text-xs leading-relaxed text-zinc-300">
+                🎉 That&apos;s the full lifecycle — regions, writes, reads,
+                consistency, and failover.
+              </p>
+              <a
+                href="https://github.com/enesgules/distributedconcepts"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 transition-colors hover:text-emerald-300"
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
+                  <path d="M8 .3l2.3 4.7 5.2.8-3.8 3.6.9 5.2L8 12.1l-4.6 2.5.9-5.2L.5 5.8l5.2-.8L8 .3z" />
+                </svg>
+                Enjoyed it? Star the project on GitHub
+              </a>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Footer */}

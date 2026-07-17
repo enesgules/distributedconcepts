@@ -27,7 +27,7 @@ function InsightInline() {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.2 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3"
     >
       <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500/70 mb-1.5">

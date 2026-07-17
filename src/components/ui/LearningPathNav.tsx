@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useOnboardingStore } from "@/lib/store/onboarding-store";
 
 const experiences = [
   { shortTitle: "Globe", description: "Explore regions" },
@@ -18,6 +19,8 @@ interface LearningPathNavProps {
 }
 
 export default function LearningPathNav({ activeStep = 0, onStepChange, compact = false }: LearningPathNavProps) {
+  const completedSteps = useOnboardingStore((s) => s.completedSteps);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -33,6 +36,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
         {experiences.map((exp, i) => {
           const isActive = i === activeStep;
           const isClickable = !isActive && onStepChange;
+          const isCompleted = completedSteps.includes(i) && !isActive;
 
           const content = (
             <div className={`flex items-center gap-2 ${compact ? "px-1 py-1" : "px-2 py-2.5 md:py-1"} ${isClickable ? "cursor-pointer" : ""}`}>
@@ -42,10 +46,18 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
                 } ${
                   isActive
                     ? "border border-emerald-500/50 bg-emerald-400/10 text-emerald-400"
-                    : "border border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
+                    : isCompleted
+                      ? "border border-emerald-500/30 text-emerald-500/80 hover:border-emerald-500/50 hover:text-emerald-400"
+                      : "border border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
                 }`}
               >
-                {i + 1}
+                {isCompleted ? (
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  i + 1
+                )}
               </div>
               {!compact && (
                 <div className="hidden sm:block">
