@@ -1,0 +1,14 @@
+# Distributed Concepts
+
+> An interactive 3D guide to distributed database concepts.
+
+Distributed Concepts explains database regions, replication, write and read
+flows, eventual consistency, and failover through a guided globe simulation.
+
+## Main page
+
+- https://distributedconcepts.com/
+
+## Source
+
+- https://github.com/enesgules/distributedconcepts
