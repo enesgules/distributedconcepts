@@ -1,8 +1,8 @@
 # Distributed Concepts
 
-An interactive 3D learning platform that teaches distributed database concepts — replication, consistency, and failover — through hands-on visualizations on a living globe.
+An interactive 3D learning platform that teaches distributed database concepts through guided, step-by-step simulations on a living globe.
 
-![Distributed Concepts — interactive 3D globe with real AWS and GCP region locations](docs/screenshot.jpg)
+![Distributed Concepts interactive 3D globe with real AWS and GCP region locations](docs/screenshot.jpg)
 
 Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?step=5`.
 
@@ -10,12 +10,16 @@ Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?
 
 | # | Experience | What You Learn |
 |---|-----------|----------------|
-| 1 | **Explore the Globe** | 18 database regions across AWS and GCP |
-| 2 | **Build Your Database** | Primary vs read replicas, network topology, latency heatmaps |
-| 3 | **Write Flow** | Single-leader writes, async replication to read replicas |
-| 4 | **Read Flow** | Nearest-region routing, latency comparison |
-| 5 | **Eventual Consistency** | Stale reads, replication lag, the consistency/latency trade-off |
-| 6 | **Failover** | In-region leader election, high availability |
+| 1 | **Place the Leader** | Every write commits in one region, so distance sets write latency |
+| 2 | **Add a Read Replica** | Copies bring reads closer but update asynchronously |
+| 3 | **Commit a Write** | Request → leader commit → client acknowledgment → background replication |
+| 4 | **Route a Read** | The router chooses the nearest copy and returns its local value |
+| 5 | **Expose a Stale Read** | A read can reach a replica before the latest write does |
+| 6 | **Recover the Leader** | Failure detection → leader election → reconnection → queued writes |
+
+The simulations pause between meaningful system actions. You decide when to
+acknowledge a commit, start replication, return a read, begin an election, and
+resume traffic.
 
 ## Tech Stack
 
@@ -25,7 +29,7 @@ Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?
 - **State:** Zustand v5
 - **Animations:** Framer Motion (UI) + R3F useFrame (3D)
 
-Everything is simulated client-side — no real database connection needed.
+Everything is simulated client-side. No real database connection is needed.
 
 ## Getting Started
 
@@ -41,43 +45,45 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 src/
 ├── app/
-│   ├── page.tsx                        — Single-page app (all 6 experiences)
-│   ├── layout.tsx                      — Root layout + OG metadata
-│   └── globals.css                     — Tailwind v4, animations, branding
+│   ├── page.tsx                        : Single-page app (all 6 lessons)
+│   ├── layout.tsx                      : Root layout + OG metadata
+│   └── globals.css                     : Tailwind v4, animations, branding
 ├── components/
-│   ├── globe/                          — 3D components (17 files)
-│   │   ├── GlobeScene.tsx              — R3F Canvas wrapper
-│   │   ├── Globe.tsx                   — GLSL shader Earth
-│   │   ├── RegionMarker.tsx            — Region dots on globe
-│   │   ├── ConnectionArc(s).tsx        — Arcs between regions
-│   │   ├── DataPacket.tsx              — Animated traveling orb
-│   │   ├── WriteFlowVisualization.tsx  — Write path animation
-│   │   ├── ReadFlowVisualization.tsx   — Read path animation
-│   │   ├── FailoverVisualization.tsx   — Failover animation
-│   │   └── ...                         — Heatmap, waves, markers, etc.
-│   ├── panels/                         — UI panels (10 files)
-│   │   ├── RegionBuilder.tsx           — Build database UI
-│   │   ├── WritePanel.tsx              — CLI write input
-│   │   ├── ReadPanel.tsx               — Read flow controls
-│   │   ├── ConsistencyRacePanel.tsx    — Consistency race controls
-│   │   ├── FailoverPanel.tsx           — Kill primary / reset
-│   │   └── ...                         — Stats, timelines, comparisons
-│   └── ui/                             — Shared UI (6 files)
-│       ├── LearningPathNav.tsx         — Bottom step navigation
-│       ├── WelcomeOverlay.tsx          — Onboarding modal
-│       └── ...                         — Sound toggle, buttons, loading
+│   ├── globe/                          : 3D components
+│   │   ├── GlobeScene.tsx              : R3F Canvas wrapper
+│   │   ├── Globe.tsx                   : GLSL shader Earth
+│   │   ├── RegionMarker.tsx            : Region dots on globe
+│   │   ├── ConnectionArc(s).tsx        : Arcs between regions
+│   │   ├── DataPacket.tsx              : Animated traveling orb
+│   │   ├── WriteFlowVisualization.tsx  : Write path animation
+│   │   ├── ReadFlowVisualization.tsx   : Read path animation
+│   │   ├── FailoverVisualization.tsx   : Recovery animation
+│   │   └── ...                         : Heatmap, waves, markers, etc.
+│   ├── panels/                         : Lesson panels and action rail
+│   │   ├── FlowPanel.tsx               : Shared panel and LessonSequence
+│   │   ├── RegionBuilder.tsx           : Replica placement UI
+│   │   ├── WritePanel.tsx              : Guided write actions
+│   │   ├── ReadPanel.tsx               : Guided read actions
+│   │   ├── ConsistencyRacePanel.tsx    : Stale-read controls
+│   │   ├── FailoverPanel.tsx           : Guided recovery actions
+│   │   └── ...                         : Stats, timelines, comparisons
+│   └── ui/                             : Shared UI
+│       ├── LearningPathNav.tsx         : Bottom lesson navigation
+│       ├── WelcomeOverlay.tsx          : Onboarding modal
+│       └── ...                         : Sound toggle, buttons, loading
 └── lib/
-    ├── regions.ts                      — 18 regions (14 AWS + 4 GCP)
-    ├── geo-utils.ts                    — Lat/lon ↔ 3D coordinate math
-    ├── arc-utils.ts                    — Arc geometry calculations
-    ├── sounds.ts                       — Sound effects
-    ├── hooks/use-geolocation.ts        — Browser geolocation hook
-    ├── simulation/latency.ts           — Distance-based latency estimation
-    └── store/                          — Zustand stores (6 files)
-        ├── database-store.ts           — Primary + read replica config
-        ├── write-flow-store.ts         — Write animation state
-        ├── read-flow-store.ts          — Read animation state
-        ├── consistency-race-store.ts   — Consistency race state
-        ├── failover-store.ts           — Failover + leader election
-        └── onboarding-store.ts         — Welcome/progress (persisted)
+    ├── regions.ts                      : 36 AWS and GCP regions
+    ├── steps.ts                        : Six-lesson curriculum registry
+    ├── geo-utils.ts                    : Lat/lon to 3D coordinate math
+    ├── arc-utils.ts                    : Arc geometry calculations
+    ├── sounds.ts                       : Sound effects
+    ├── hooks/use-geolocation.ts        : Browser geolocation hook
+    ├── simulation/latency.ts           : Distance-based latency estimation
+    └── store/                          : Zustand stores
+        ├── database-store.ts           : Leader and read-replica config
+        ├── write-flow-store.ts         : Write lesson state
+        ├── read-flow-store.ts          : Read lesson state
+        ├── consistency-race-store.ts   : Consistency lesson state
+        ├── failover-store.ts           : Recovery lesson state
+        └── onboarding-store.ts         : Welcome and progress persistence
 ```

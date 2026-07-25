@@ -15,7 +15,27 @@ import {
   LatencyCounter,
   ExecuteFooter,
   SectionLabel,
+  LessonSequence,
+  type LessonBeat,
 } from "./FlowPanel";
+
+const READ_BEATS = [
+  {
+    title: "Choose the nearest copy",
+    detail:
+      "The router compares the client with every available copy and chooses the shortest network path.",
+  },
+  {
+    title: "Fetch the value",
+    detail:
+      "The request reaches the selected region. That region reads its local copy without contacting the leader.",
+  },
+  {
+    title: "Return to the client",
+    detail:
+      "The selected region sends the value back along the same short path. The leader stays out of the read path.",
+  },
+] as const satisfies readonly LessonBeat[];
 
 function InsightInline() {
   const nearestRegionId = useReadFlowStore((s) => s.nearestRegionId);
@@ -43,15 +63,15 @@ function InsightInline() {
         <>
           <p className="text-xs leading-relaxed text-zinc-300">
             Read served from the{" "}
-            <span className="font-semibold text-amber-400">primary</span> (
+            <span className="font-semibold text-amber-400">leader</span> (
             {nearestRegion?.city ?? nearestRegionId}) in{" "}
             <span className="font-mono font-semibold text-cyan-400">
               {nearestLatencyMs}ms
             </span>
-            . The primary is already the closest region to you.
+            . The leader is already the closest region to you.
           </p>
           <p className="mt-1.5 text-[11px] text-zinc-500">
-            Try placing your client closer to a read replica to see the
+            Move the client closer to a read replica to see the
             routing advantage.
           </p>
         </>
@@ -66,11 +86,11 @@ function InsightInline() {
             <span className="font-mono font-semibold text-cyan-400">
               {nearestLatencyMs}ms
             </span>
-            . Reading from primary would take{" "}
+            . Reading from the leader would take{" "}
             <span className="font-mono font-semibold text-zinc-400">
               {primaryLatencyMs}ms
             </span>{" "}
-            — {(primaryLatencyMs / nearestLatencyMs).toFixed(1)}x slower!
+            and be {(primaryLatencyMs / nearestLatencyMs).toFixed(1)}x slower.
           </p>
           <p className="mt-1.5 text-[11px] text-zinc-500">
             Reads are routed to the nearest replica automatically, giving
@@ -108,8 +128,8 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
 
   const canExecute =
     clientLocation !== null && nearest !== null && phase === "idle";
-  const isAnimating =
-    phase === "fetching" || phase === "arriving" || phase === "responding";
+  const canAdvance = phase === "arriving";
+  const isAnimating = phase === "fetching" || phase === "responding";
 
   const handleExecute = useCallback(() => {
     if (!clientLocation || !nearest || !primary || !primaryRegion) return;
@@ -133,9 +153,24 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
       .startRead(nearest.region.id, nearestLatency, primaryLatency);
   }, [clientLocation, nearest, primary, primaryRegion]);
 
+  const handleReturnResponse = useCallback(() => {
+    useReadFlowStore.getState().startResponse();
+  }, []);
+
   const handleReplay = useCallback(() => {
     useReadFlowStore.getState().reset();
   }, []);
+
+  const activeBeat =
+    phase === "idle" || phase === "fetching"
+      ? 0
+      : phase === "arriving"
+        ? 1
+        : 2;
+  const actionLabel =
+    phase === "arriving" ? "Return value to client" : "Route read";
+  const busyLabel =
+    phase === "responding" ? "Returning value..." : "Fetching local copy...";
 
   const displayedLatency =
     phase === "fetching"
@@ -146,22 +181,32 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
 
   return (
     <FlowPanel
-      title="Read Flow"
-      description="See how reads route to the nearest replica for low latency"
+      title="Route a Read"
+      description="Follow the router's choice, the local lookup, and the response"
       footer={
         <ExecuteFooter
           complete={phase === "complete"}
-          onExecute={handleExecute}
+          onExecute={
+            phase === "arriving" ? handleReturnResponse : handleExecute
+          }
           onReplay={handleReplay}
-          disabled={!canExecute}
+          disabled={!canExecute && !canAdvance}
           busy={isAnimating}
-          nextLabel="Race replication"
+          executeLabel={actionLabel}
+          busyLabel={busyLabel}
+          nextLabel="Expose a stale read"
           onNext={onNext}
         />
       }
     >
       <RegionSummary />
       <ClientLocationBlock location={clientLocation} />
+      <LessonSequence
+        beats={READ_BEATS}
+        activeIndex={activeBeat}
+        running={isAnimating}
+        complete={phase === "complete"}
+      />
 
       {/* Nearest Region (real-time) */}
       {nearest && phase === "idle" && (

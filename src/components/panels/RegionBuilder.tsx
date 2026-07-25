@@ -90,7 +90,7 @@ function RegionListItem({
       <div className="shrink-0">
         {role === "primary" && (
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-            Primary
+            Leader
           </span>
         )}
         {role === "read" && latency !== null && (
@@ -208,10 +208,10 @@ export default function RegionBuilder({
       {/* Header */}
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
         <h2 className="text-balance text-lg font-semibold text-zinc-100">
-          Build Your Database
+          Add a Read Replica
         </h2>
         <p className="mt-1 text-pretty text-xs text-zinc-400">
-          Choose where writes land, then place a replica closer to your readers.
+          Your leader commits every write. Add a copy closer to distant readers.
         </p>
 
         {/* Step indicator */}
@@ -229,7 +229,7 @@ export default function RegionBuilder({
             <span
               className={`text-xs ${primaryRegion ? "text-zinc-300" : "text-zinc-500"}`}
             >
-              Primary
+              Leader placed
             </span>
           </div>
 
@@ -248,7 +248,7 @@ export default function RegionBuilder({
             <span
               className={`text-xs ${hasReplica ? "text-zinc-300" : "text-zinc-500"}`}
             >
-              Read Replicas
+              Add a replica
             </span>
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function RegionBuilder({
               }
             />
             <p className="mt-1.5 px-1 text-[10px] text-zinc-500">
-              This location gives the largest drop in global read latency.
+              This copy gives the largest drop in average global read latency.
             </p>
           </div>
         )}
@@ -388,13 +388,13 @@ export default function RegionBuilder({
                   onClick={onNext}
                   className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                 >
-                  Run a write
+                  Commit a write
                 </button>
               )}
             </>
           ) : (
             <p className="text-pretty text-center text-[11px] text-zinc-500">
-              Add one read replica to see how global latency changes.
+              Add one read replica. The heatmap shows where reads become faster.
             </p>
           )}
           <div className="flex justify-end">

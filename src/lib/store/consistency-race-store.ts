@@ -33,6 +33,7 @@ interface ConsistencyRaceState {
     readLatency: number
   ) => void;
   setWriteProgress: (p: number) => void;
+  startReplicationRace: () => void;
   setReplicationProgress: (p: number) => void;
   setReadProgress: (p: number) => void;
   markReadStarted: () => void;
@@ -80,6 +81,15 @@ export const useConsistencyRaceStore = create<ConsistencyRaceState>(
       }),
 
     setWriteProgress: (p) => set({ writeProgress: p }),
+    startReplicationRace: () => {
+      if (get().phase !== "write-ack") return;
+      set({
+        phase: "racing",
+        replicationProgress: 0,
+        readProgress: 0,
+        readStarted: false,
+      });
+    },
     setReplicationProgress: (p) => set({ replicationProgress: p }),
     setReadProgress: (p) => set({ readProgress: p }),
     markReadStarted: () => set({ readStarted: true }),

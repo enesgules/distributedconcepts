@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
-import { advance, FLASH_PAUSE_MS } from "@/lib/simulation/animation";
+import { advance } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
-import { playAckSound, playReplicateSound, playReplicaArriveSound } from "@/lib/sounds";
+import { playAckSound, playReplicaArriveSound } from "@/lib/sounds";
 
 function ReplicationArc({
   primaryLat,
@@ -60,15 +60,6 @@ export default function WriteFlowVisualization() {
   const clientLocation = useWriteFlowStore((s) => s.clientLocation);
   const phase = useWriteFlowStore((s) => s.phase);
 
-  const ackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (ackTimeoutRef.current) clearTimeout(ackTimeoutRef.current);
-    };
-  }, []);
-
   // Get primary region data
   const primary = primaryRegion ? getRegionById(primaryRegion) : null;
 
@@ -107,19 +98,6 @@ export default function WriteFlowVisualization() {
       if (newProgress >= 1) {
         playAckSound();
         store.onPrimaryAck();
-        // Transition to replicating after a brief pause for the flash
-        ackTimeoutRef.current = setTimeout(() => {
-          const s = useWriteFlowStore.getState();
-          if (s.phase === "primary-ack") {
-            playReplicateSound();
-            s.setPhase("replicating");
-            s.addEvent({
-              time: s.primaryLatencyMs,
-              label: `Replication started to ${s.replicaStatuses.length} replica${s.replicaStatuses.length !== 1 ? "s" : ""}`,
-              type: "replicate",
-            });
-          }
-        }, FLASH_PAUSE_MS);
       }
     }
 

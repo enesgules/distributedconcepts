@@ -4,17 +4,70 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useFailoverStore, type FailoverPhase } from "@/lib/store/failover-store";
 import { getRegionById } from "@/lib/regions";
-import { FlowPanel, SectionLabel } from "./FlowPanel";
+import {
+  FlowPanel,
+  LessonSequence,
+  SectionLabel,
+  type LessonBeat,
+} from "./FlowPanel";
 
-type NarratedPhase = Exclude<FailoverPhase, "idle" | "complete">;
+const FAILOVER_BEATS = [
+  {
+    title: "Fail the leader",
+    detail:
+      "The active leader stops responding. Reads still use remote replicas, but new writes have nowhere to commit.",
+  },
+  {
+    title: "Confirm the outage",
+    detail:
+      "Health checks wait long enough to distinguish a failed leader from a short network delay.",
+  },
+  {
+    title: "Elect a replacement",
+    detail:
+      "Backup nodes inside the same region choose one new leader. The database avoids moving the write region.",
+  },
+  {
+    title: "Resume queued writes",
+    detail:
+      "Replicas reconnect to the replacement leader and queued writes drain in their original order.",
+  },
+] as const satisfies readonly LessonBeat[];
 
-const PHASE_NARRATION: Record<NarratedPhase, (ctx: { failedCity: string; queueCount: number }) => string> = {
-  failure: ({ failedCity }) => `Primary node in ${failedCity} has failed. Backup replicas in the same region are standing by...`,
-  detecting: ({ queueCount }) => `Health checks detecting failure. ${queueCount} write requests queued...`,
-  electing: ({ failedCity }) => `Backup replicas in ${failedCity} are electing a new leader...`,
-  elected: ({ failedCity }) => `New leader elected in ${failedCity}! Same region, minimal downtime.`,
-  recovering: () => "Read replicas reconnecting to new leader. Queued writes resuming...",
-};
+function getNarration({
+  phase,
+  failedCity,
+  queueCount,
+  failureReady,
+  detectionReady,
+}: {
+  phase: FailoverPhase;
+  failedCity: string;
+  queueCount: number;
+  failureReady: boolean;
+  detectionReady: boolean;
+}): string | null {
+  if (phase === "failure") {
+    return failureReady
+      ? `${queueCount} writes are queued. Read replicas still serve reads while the system waits for a health check.`
+      : `The leader in ${failedCity} stopped responding. Connections are breaking and writes can no longer commit.`;
+  }
+  if (phase === "detecting") {
+    return detectionReady
+      ? "Health checks agree that the leader is down. The cluster can now elect a replacement."
+      : "Health checks are confirming that this is a real outage, not a brief network delay.";
+  }
+  if (phase === "electing") {
+    return `Backup nodes in ${failedCity} are choosing one new leader. Writes remain queued during the vote.`;
+  }
+  if (phase === "elected") {
+    return `A new leader is ready in ${failedCity}. Replicas and queued clients still need to reconnect.`;
+  }
+  if (phase === "recovering") {
+    return "Read replicas are reconnecting. Queued writes are moving to the replacement leader.";
+  }
+  return null;
+}
 
 export default function FailoverPanel({
   onRestart,
@@ -28,40 +81,98 @@ export default function FailoverPanel({
   const failedRegionId = useFailoverStore((s) => s.failedRegionId);
   const downtimeMs = useFailoverStore((s) => s.downtimeMs);
   const queuedRequests = useFailoverStore((s) => s.queuedRequests);
+  const failureFlashProgress = useFailoverStore(
+    (s) => s.failureFlashProgress
+  );
+  const detectionProgress = useFailoverStore((s) => s.detectionProgress);
   const killPrimary = useFailoverStore((s) => s.killPrimary);
+  const startDetection = useFailoverStore((s) => s.startDetection);
+  const startElection = useFailoverStore((s) => s.startElection);
+  const startRecovery = useFailoverStore((s) => s.startRecovery);
   const reset = useFailoverStore((s) => s.reset);
 
   const failedRegion = failedRegionId ? getRegionById(failedRegionId) : null;
   const currentPrimary = primaryRegion ? getRegionById(primaryRegion) : null;
 
-  const narration =
-    phase !== "idle" && phase !== "complete"
-      ? PHASE_NARRATION[phase]({
-          failedCity: failedRegion?.city ?? "unknown",
-          queueCount: queuedRequests.length,
-        })
-      : null;
+  const failureReady = phase === "failure" && failureFlashProgress >= 1;
+  const detectionReady = phase === "detecting" && detectionProgress >= 1;
+  const narration = getNarration({
+    phase,
+    failedCity: failedRegion?.city ?? "unknown",
+    queueCount: queuedRequests.length,
+    failureReady,
+    detectionReady,
+  });
+  const isAnimating =
+    (phase === "failure" && !failureReady) ||
+    (phase === "detecting" && !detectionReady) ||
+    phase === "electing" ||
+    phase === "recovering";
+  const activeBeat =
+    phase === "idle" || (phase === "failure" && !failureReady)
+      ? 0
+      : phase === "failure" ||
+          phase === "detecting"
+        ? 1
+        : phase === "electing" || phase === "elected"
+          ? 2
+          : 3;
 
-  const isAnimating = phase !== "idle" && phase !== "complete";
+  const lessonAction =
+    phase === "idle"
+      ? {
+          label: "Fail the leader",
+          onClick: killPrimary,
+          className:
+            "bg-red-400/10 text-red-400 hover:bg-red-400/20 disabled:opacity-30",
+        }
+      : failureReady
+        ? {
+            label: "Run health checks",
+            onClick: startDetection,
+            className:
+              "bg-amber-400/10 text-amber-300 hover:bg-amber-400/20",
+          }
+        : detectionReady
+          ? {
+              label: "Elect a new leader",
+              onClick: startElection,
+              className:
+                "bg-amber-400/10 text-amber-300 hover:bg-amber-400/20",
+            }
+          : phase === "elected"
+            ? {
+                label: "Reconnect and resume",
+                onClick: startRecovery,
+                className:
+                  "bg-emerald-400 text-zinc-950 hover:bg-emerald-300",
+              }
+            : null;
 
   return (
     <FlowPanel
-      title="Failover & Leader Election"
-      description="Watch how in-region replicas take over on failure"
+      title="Recover the Leader"
+      description="Advance through detection, election, and traffic recovery"
       footer={
         <>
-          {phase === "idle" && (
+          {lessonAction && (
             <button
-              onClick={killPrimary}
+              onClick={lessonAction.onClick}
               disabled={!primaryRegion || readRegions.length === 0}
-              className="w-full cursor-pointer rounded-full bg-red-400/10 px-4 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-30"
+              className={`min-h-10 w-full cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-[background-color,scale] duration-150 active:scale-[0.96] disabled:cursor-not-allowed ${lessonAction.className}`}
             >
-              Kill Primary
+              {lessonAction.label}
             </button>
           )}
           {isAnimating && (
             <div className="text-center text-xs text-zinc-500">
-              Failing over...
+              {phase === "failure"
+                ? "Breaking connections..."
+                : phase === "detecting"
+                  ? "Checking leader health..."
+                  : phase === "electing"
+                    ? "Voting for a leader..."
+                    : "Resuming traffic..."}
             </div>
           )}
           {phase === "complete" && (
@@ -86,6 +197,13 @@ export default function FailoverPanel({
       }
     >
       <>
+        <LessonSequence
+          beats={FAILOVER_BEATS}
+          activeIndex={activeBeat}
+          running={isAnimating}
+          complete={phase === "complete"}
+        />
+
         {/* Cluster Status */}
         <div>
           <SectionLabel>Cluster Status</SectionLabel>
@@ -97,8 +215,10 @@ export default function FailoverPanel({
                   className={`h-2 w-2 rounded-full ${
                     phase === "idle"
                       ? "bg-amber-400"
-                      : phase === "elected" || phase === "recovering" || phase === "complete"
+                      : phase === "complete"
                         ? "bg-amber-400"
+                        : phase === "elected" || phase === "recovering"
+                          ? "bg-amber-400 animate-pulse"
                         : "bg-red-400 animate-pulse"
                   }`}
                 />
@@ -109,21 +229,27 @@ export default function FailoverPanel({
                   className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
                     phase === "idle"
                       ? "bg-amber-500/10 text-amber-400"
-                      : phase === "elected" || phase === "recovering" || phase === "complete"
+                      : phase === "elected" ||
+                          phase === "recovering" ||
+                          phase === "complete"
                         ? "bg-amber-500/10 text-amber-400"
                         : "bg-red-500/10 text-red-400"
                   }`}
                 >
                   {phase === "idle"
-                    ? "Primary"
-                    : phase === "elected" || phase === "recovering" || phase === "complete"
-                      ? "Recovered"
+                    ? "Leader"
+                    : phase === "elected"
+                      ? "Elected"
+                      : phase === "recovering"
+                        ? "Reconnecting"
+                        : phase === "complete"
+                          ? "Leader"
                       : "Failed"}
                 </span>
               </div>
             )}
 
-            {/* Read replicas — continue serving reads throughout failover */}
+            {/* Read replicas continue serving reads throughout failover */}
             {readRegions.map((id) => {
               const region = getRegionById(id);
               if (!region) return null;
@@ -198,15 +324,15 @@ export default function FailoverPanel({
                 Key Insight
               </p>
               <p className="text-xs leading-relaxed text-zinc-300">
-                Failover completed in{" "}
+                Recovery completed in{" "}
                 <span className="font-mono font-semibold text-cyan-400">
                   {downtimeMs}ms
                 </span>
                 . A backup replica in {failedRegion.city} was promoted to
-                leader — the primary stays in the same region.
+                leader. The write region did not move.
               </p>
               <p className="mt-1.5 text-[11px] text-zinc-500">
-                The database keeps multiple replicas within the primary region for high
+                The database keeps multiple copies inside the leader region for high
                 availability. During failover, read replicas continue serving
                 reads. Only writes are briefly interrupted.
               </p>
@@ -224,10 +350,10 @@ export default function FailoverPanel({
               className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 px-4 py-3"
             >
               <p className="text-xs leading-relaxed text-zinc-300">
-                You built a database with one primary and {readRegions.length}{" "}
+                You placed one leader and {readRegions.length}{" "}
                 read replica{readRegions.length !== 1 ? "s" : ""}, ran a write
                 and a read, saw eventual consistency, and recovered from a
-                primary failure.
+                leader failure.
               </p>
               <a
                 href="https://github.com/enesgules/distributedconcepts"

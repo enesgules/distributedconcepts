@@ -68,12 +68,12 @@ export default function WelcomeOverlay({
               id="welcome-title"
               className="mt-4 max-w-md text-balance text-3xl font-bold tracking-tight text-zinc-50 sm:text-4xl"
             >
-              Build a global database and watch it fail.
+              Learn what the database does, one action at a time.
             </h2>
 
             <p className="mt-4 max-w-sm text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base">
-              Choose regions, run a write and a read, race replication, then
-              take down the primary. The guided tour takes about five minutes.
+              Place a leader, add a read replica, then control every step of a
+              write, a read, a stale result, and a leader failure.
             </p>
 
             <motion.button
@@ -83,7 +83,7 @@ export default function WelcomeOverlay({
               onClick={dismiss}
               className="mt-7 min-h-11 cursor-pointer rounded-full bg-emerald-400 px-7 py-3 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 ease-out hover:bg-emerald-300 active:scale-[0.96]"
             >
-              {forceOpen ? "Back to experience" : "Choose your primary region"}
+              {forceOpen ? "Back to experience" : "Place your leader"}
             </motion.button>
 
             <details className="group mt-5 w-full text-left">

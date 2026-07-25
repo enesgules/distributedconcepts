@@ -7,11 +7,7 @@ import { useDatabaseStore } from "@/lib/store/database-store";
 import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { getRegionById } from "@/lib/regions";
 import { staleReadMarginMs } from "@/lib/simulation/latency";
-import {
-  ANIMATION_SPEED,
-  FLASH_PAUSE_MS,
-  advance,
-} from "@/lib/simulation/animation";
+import { ANIMATION_SPEED, advance } from "@/lib/simulation/animation";
 import { computeArcPoints } from "@/lib/arc-utils";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
@@ -19,7 +15,6 @@ import PrimaryFlash from "./PrimaryFlash";
 import {
   playPacketSendSound,
   playAckSound,
-  playReplicateSound,
   playReplicaArriveSound,
   playStaleSound,
 } from "@/lib/sounds";
@@ -43,7 +38,6 @@ export default function ConsistencyRaceVisualization({
   const readStarted = useConsistencyRaceStore((s) => s.readStarted);
   const isStale = useConsistencyRaceStore((s) => s.isStale);
 
-  const ackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -52,11 +46,31 @@ export default function ConsistencyRaceVisualization({
   // Cleanup all timeouts on unmount
   useEffect(() => {
     return () => {
-      if (ackTimeoutRef.current) clearTimeout(ackTimeoutRef.current);
       if (readDelayTimeoutRef.current) clearTimeout(readDelayTimeoutRef.current);
       if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (phase !== "racing" || readStarted) return;
+
+    const store = useConsistencyRaceStore.getState();
+    const scaledDelay = Math.max(store.readDelay * ANIMATION_SPEED * 1000, 0);
+    readDelayTimeoutRef.current = setTimeout(() => {
+      const latest = useConsistencyRaceStore.getState();
+      if (latest.phase === "racing" && !latest.readStarted) {
+        playPacketSendSound();
+        latest.markReadStarted();
+      }
+    }, scaledDelay);
+
+    return () => {
+      if (readDelayTimeoutRef.current) {
+        clearTimeout(readDelayTimeoutRef.current);
+        readDelayTimeoutRef.current = null;
+      }
+    };
+  }, [phase, readStarted]);
 
   const primary = primaryRegionId ? getRegionById(primaryRegionId) : null;
   const replica = getRegionById(replicaRegionId);
@@ -101,25 +115,6 @@ export default function ConsistencyRaceVisualization({
       if (p >= 1) {
         playAckSound();
         store.setPhase("write-ack");
-
-        // After flash pause, start the race
-        ackTimeoutRef.current = setTimeout(() => {
-          const s = useConsistencyRaceStore.getState();
-          if (s.phase === "write-ack") {
-            playReplicateSound();
-            s.setPhase("racing");
-
-            // Schedule the read request after user's delay
-            const scaledDelay = Math.max(s.readDelay * ANIMATION_SPEED * 1000, 0);
-            readDelayTimeoutRef.current = setTimeout(() => {
-              const s2 = useConsistencyRaceStore.getState();
-              if (s2.phase === "racing" && !s2.readStarted) {
-                playPacketSendSound();
-                s2.markReadStarted();
-              }
-            }, scaledDelay);
-          }
-        }, FLASH_PAUSE_MS);
       }
     }
 

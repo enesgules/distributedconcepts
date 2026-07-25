@@ -34,8 +34,10 @@ export default function LoadingScreen() {
       </p>
       <div className="mt-4 h-0.5 w-48 overflow-hidden rounded-full bg-zinc-800">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-[width] duration-300 ease-out"
-          style={{ width: `${Math.max(progress, 5)}%` }}
+          className="h-full origin-left rounded-full bg-emerald-500 transition-transform duration-300 ease-out"
+          style={{
+            transform: `scaleX(${Math.max(progress, 5) / 100})`,
+          }}
         />
       </div>
       <p className="mt-3 font-mono text-xs tabular-nums text-zinc-500">

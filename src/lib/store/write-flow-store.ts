@@ -39,6 +39,7 @@ interface WriteFlowState {
   ) => void;
   setPrimaryProgress: (p: number) => void;
   onPrimaryAck: () => void;
+  startReplication: () => void;
   setReplicaProgress: (regionId: string, progress: number) => void;
   onReplicaArrive: (regionId: string) => void;
   setPhase: (phase: AnimationPhase) => void;
@@ -97,8 +98,24 @@ export const useWriteFlowStore = create<WriteFlowState>((set, get) => ({
         ...state.events,
         {
           time: state.primaryLatencyMs,
-          label: "Primary confirmed: OK",
+          label: "Leader confirmed: OK",
           type: "ack",
+        },
+      ],
+    });
+  },
+
+  startReplication: () => {
+    const state = get();
+    if (state.phase !== "primary-ack") return;
+    set({
+      phase: "replicating",
+      events: [
+        ...state.events,
+        {
+          time: state.primaryLatencyMs,
+          label: `Replication started to ${state.replicaStatuses.length} replica${state.replicaStatuses.length !== 1 ? "s" : ""}`,
+          type: "replicate",
         },
       ],
     });

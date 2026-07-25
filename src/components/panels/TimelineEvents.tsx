@@ -23,9 +23,19 @@ export default function TimelineEvents<T extends string>({
           return (
             <motion.div
               key={`${event.time}-${event.type}-${i}`}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: 0.05 * i }}
+              initial={{
+                opacity: 0,
+                transform: "translate3d(-8px, 0, 0)",
+              }}
+              animate={{
+                opacity: 1,
+                transform: "translate3d(0px, 0, 0)",
+              }}
+              transition={{
+                duration: 0.18,
+                delay: 0.05 * i,
+                ease: [0.23, 1, 0.32, 1],
+              }}
               className="flex items-start gap-3"
             >
               <span className="w-10 shrink-0 text-right font-mono text-[11px] text-zinc-500">

@@ -56,21 +56,21 @@ function setSharedClientLocation(lat: number, lon: number) {
 
 // ── Panel animation variants ─────────────────────────────────────────
 const desktopLeftPanelVariants = {
-  hidden: { x: -400, opacity: 0 },
-  visible: { x: 0, opacity: 1 },
-  exit: { x: -400, opacity: 0 },
+  hidden: { transform: "translate3d(-400px, 0, 0)", opacity: 0 },
+  visible: { transform: "translate3d(0px, 0, 0)", opacity: 1 },
+  exit: { transform: "translate3d(-400px, 0, 0)", opacity: 0 },
 };
 
 const mobileLeftPanelVariants = {
-  hidden: { y: 40, opacity: 0 },
-  visible: { y: 0, opacity: 1 },
-  exit: { y: 40, opacity: 0 },
+  hidden: { transform: "translate3d(0, 40px, 0)", opacity: 0 },
+  visible: { transform: "translate3d(0, 0px, 0)", opacity: 1 },
+  exit: { transform: "translate3d(0, 40px, 0)", opacity: 0 },
 };
 
 const rightPanelVariants = {
-  hidden: { x: 100, opacity: 0 },
-  visible: { x: 0, opacity: 1 },
-  exit: { x: 100, opacity: 0 },
+  hidden: { transform: "translate3d(100px, 0, 0)", opacity: 0 },
+  visible: { transform: "translate3d(0px, 0, 0)", opacity: 1 },
+  exit: { transform: "translate3d(100px, 0, 0)", opacity: 0 },
 };
 
 const panelTransition = {
@@ -180,13 +180,29 @@ export default function Home() {
   // → fixed fallback) so Execute/Run Race are never dead on arrival
   useEffect(() => {
     if (activeStep < 2 || activeStep > 4) return;
+
+    // The read lesson introduces a reader near the replica the learner chose.
+    // Carry that same reader into the consistency lesson so the replica race
+    // works without asking the learner to hunt for a location on the globe.
+    if (activeStep === 3 && readRegions.length > 0) {
+      const replica = getRegionById(readRegions[0]);
+      if (replica) {
+        setSharedClientLocation(replica.lat, replica.lon);
+        return;
+      }
+    }
+
     const existing =
-      useWriteFlowStore.getState().clientLocation ??
-      useReadFlowStore.getState().clientLocation ??
-      useConsistencyRaceStore.getState().clientLocation;
+      activeStep === 4
+        ? useConsistencyRaceStore.getState().clientLocation ??
+          useReadFlowStore.getState().clientLocation ??
+          useWriteFlowStore.getState().clientLocation
+        : useWriteFlowStore.getState().clientLocation ??
+          useReadFlowStore.getState().clientLocation ??
+          useConsistencyRaceStore.getState().clientLocation;
     const loc = existing ?? geo ?? DEFAULT_CLIENT;
     setSharedClientLocation(loc.lat, loc.lon);
-  }, [activeStep, geo]);
+  }, [activeStep, geo, readRegions]);
 
   // ── Region click handler (step-dependent) ───────────────────────────
   const handleRegionClick = useCallback(
@@ -500,21 +516,21 @@ export default function Home() {
           >
             <div className="pointer-events-auto w-full max-w-md rounded-3xl bg-zinc-950/82 px-5 py-4 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7 sm:py-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
-                Your first task
+                Lesson 1 of 6
               </p>
               <h1 className="mt-2 text-balance text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
-                Choose your primary region
+                Place the write leader
               </h1>
               <p className="mx-auto mt-2 max-w-sm text-pretty text-xs leading-relaxed text-zinc-400 sm:text-sm">
-                Every write starts here. Pick any glowing region, or begin with
-                the closest suggested location.
+                Every write must reach this one region before it can commit.
+                Pick a glowing location and keep its distance in mind.
               </p>
               {suggestedRegion && (
                 <button
                   onClick={startWithSuggestedRegion}
                   className="mt-4 min-h-11 rounded-full bg-emerald-400 pl-5 pr-4 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                 >
-                  Use {suggestedRegion.city}
+                  Place leader in {suggestedRegion.city}
                   <span className="ml-2" aria-hidden="true">
                     →
                   </span>

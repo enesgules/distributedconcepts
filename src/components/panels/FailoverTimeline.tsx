@@ -25,7 +25,8 @@ function getWriteStatus(phase: FailoverPhase): { label: string; color: string } 
 }
 
 function getReadStatus(phase: FailoverPhase): { label: string; color: string } {
-  if (phase === "idle") return { label: "OK", color: "text-emerald-400" };
+  if (phase === "idle" || phase === "complete")
+    return { label: "OK", color: "text-emerald-400" };
   return { label: "OK (possibly stale)", color: "text-emerald-400" };
 }
 

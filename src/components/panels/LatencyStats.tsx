@@ -86,7 +86,7 @@ export default function LatencyStats() {
         {/* Replica count */}
         <div className="mt-3 flex gap-2">
           <span className="rounded-full border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-            1 primary
+            1 leader
           </span>
           {readRegions.length > 0 && (
             <span className="rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-medium text-emerald-400">

@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { motion } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { getRegionById } from "@/lib/regions";
-import { calculateDistance } from "@/lib/geo-utils";
 import {
   estimateLatency,
   estimateLatencyBetweenRegions,
 } from "@/lib/simulation/latency";
-import { playPacketSendSound } from "@/lib/sounds";
+import { playPacketSendSound, playReplicateSound } from "@/lib/sounds";
 import {
   FlowPanel,
   RegionSummary,
@@ -18,7 +17,27 @@ import {
   CommandTerminal,
   LatencyCounter,
   ExecuteFooter,
+  LessonSequence,
+  type LessonBeat,
 } from "./FlowPanel";
+
+const WRITE_BEATS = [
+  {
+    title: "Send to the leader",
+    detail:
+      "The client sends the command to the only region allowed to accept writes. More distance means more write latency.",
+  },
+  {
+    title: "Commit and acknowledge",
+    detail:
+      "The leader stores the value and returns OK. The client can continue even though remote replicas are still behind.",
+  },
+  {
+    title: "Copy in the background",
+    detail:
+      "The leader sends the committed value to every read replica. Each copy catches up after its own network delay.",
+  },
+] as const satisfies readonly LessonBeat[];
 
 function InsightInline() {
   const primaryLatencyMs = useWriteFlowStore((s) => s.primaryLatencyMs);
@@ -52,70 +71,11 @@ function InsightInline() {
         .
       </p>
       <p className="mt-1.5 text-[11px] text-zinc-500">
-        Replicas are eventually consistent — the client gets{" "}
+        Replicas are eventually consistent. The client gets{" "}
         <span className="font-mono text-emerald-400">OK</span> before all
         replicas have the data.
       </p>
     </motion.div>
-  );
-}
-
-function PhaseNarration() {
-  const phase = useWriteFlowStore((s) => s.phase);
-  const clientLocation = useWriteFlowStore((s) => s.clientLocation);
-  const replicaStatuses = useWriteFlowStore((s) => s.replicaStatuses);
-  const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
-
-  const primary = primaryRegion ? getRegionById(primaryRegion) : null;
-
-  const distanceKm = useMemo(() => {
-    if (!clientLocation || !primary) return null;
-    return Math.round(
-      calculateDistance(
-        clientLocation.lat,
-        clientLocation.lon,
-        primary.lat,
-        primary.lon
-      )
-    );
-  }, [clientLocation, primary]);
-
-  const furthestReplica = useMemo(() => {
-    if (replicaStatuses.length === 0) return null;
-    const sorted = [...replicaStatuses].sort(
-      (a, b) => b.latencyMs - a.latencyMs
-    );
-    const region = getRegionById(sorted[0].regionId);
-    return region
-      ? { city: region.city, latencyMs: sorted[0].latencyMs }
-      : null;
-  }, [replicaStatuses]);
-
-  let text: string | null = null;
-
-  if (phase === "idle" && clientLocation && primary) {
-    text = `Ready. Your command will travel ${distanceKm?.toLocaleString()}km to the primary in ${primary.city}.`;
-  } else if (phase === "to-primary" && primary) {
-    text = `Your SET command is crossing ${distanceKm?.toLocaleString()}km to reach the primary in ${primary.city}...`;
-  } else if (phase === "primary-ack") {
-    const verb = replicaStatuses.length === 1 ? "doesn't" : "don't";
-    text = `Primary confirmed! Client gets OK. But ${replicaStatuses.length} read replica${replicaStatuses.length !== 1 ? "s" : ""} ${verb} have this data yet...`;
-  } else if (phase === "replicating" && furthestReplica) {
-    text = `Data is fanning out to ${replicaStatuses.length} replica${replicaStatuses.length !== 1 ? "s" : ""}. The furthest is ${furthestReplica.city} (${furthestReplica.latencyMs}ms away)...`;
-  }
-
-  if (!text) return null;
-
-  return (
-    <motion.p
-      key={phase}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="text-[11px] leading-relaxed text-zinc-500 italic"
-    >
-      {text}
-    </motion.p>
   );
 }
 
@@ -134,10 +94,8 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
 
   const canExecute =
     clientLocation !== null && primary !== null && phase === "idle";
-  const isAnimating =
-    phase === "to-primary" ||
-    phase === "primary-ack" ||
-    phase === "replicating";
+  const canAdvance = phase === "primary-ack";
+  const isAnimating = phase === "to-primary" || phase === "replicating";
 
   const handleExecute = useCallback(() => {
     if (!clientLocation || !primary || !primaryRegion) return;
@@ -160,9 +118,27 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
     useWriteFlowStore.getState().startAnimation(primaryLatency, replicas);
   }, [clientLocation, primary, primaryRegion, readRegions]);
 
+  const handleStartReplication = useCallback(() => {
+    playReplicateSound();
+    useWriteFlowStore.getState().startReplication();
+  }, []);
+
   const handleReplay = useCallback(() => {
     useWriteFlowStore.getState().reset();
   }, []);
+
+  const activeBeat =
+    phase === "idle" || phase === "to-primary"
+      ? 0
+      : phase === "primary-ack"
+        ? 1
+        : 2;
+  const actionLabel =
+    phase === "primary-ack"
+      ? `Copy to ${readRegions.length} replica${readRegions.length !== 1 ? "s" : ""}`
+      : "Send write";
+  const busyLabel =
+    phase === "replicating" ? "Copying to replicas..." : "Sending to leader...";
 
   const displayedLatency =
     phase === "to-primary"
@@ -173,30 +149,39 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
 
   return (
     <FlowPanel
-      title="Write Flow"
-      description="Watch data travel from client to primary, then replicate to all regions"
+      title="Commit a Write"
+      description="See why the client gets OK before every replica has the value"
       footer={
         <ExecuteFooter
           complete={phase === "complete"}
-          onExecute={handleExecute}
+          onExecute={
+            phase === "primary-ack" ? handleStartReplication : handleExecute
+          }
           onReplay={handleReplay}
-          disabled={!canExecute}
+          disabled={!canExecute && !canAdvance}
           busy={isAnimating}
-          nextLabel="Compare reads"
+          executeLabel={actionLabel}
+          busyLabel={busyLabel}
+          nextLabel="Route a read"
           onNext={onNext}
-          completeHint="Click a different spot on the globe to see how distance affects write latency"
+          completeHint="Move the client and replay to see how leader distance changes commit latency"
         />
       }
     >
       <RegionSummary />
       <ClientLocationBlock location={clientLocation} />
+      <LessonSequence
+        beats={WRITE_BEATS}
+        activeIndex={activeBeat}
+        running={isAnimating}
+        complete={phase === "complete"}
+      />
       <CommandTerminal
         value={command}
         onChange={(cmd) => useWriteFlowStore.getState().setCommand(cmd)}
         disabled={phase !== "idle"}
         response={response}
       />
-      <PhaseNarration />
       {displayedLatency !== null && (
         <LatencyCounter
           value={displayedLatency}

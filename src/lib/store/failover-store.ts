@@ -54,6 +54,9 @@ interface FailoverData {
 
 interface FailoverState extends FailoverData {
   killPrimary: () => void;
+  startDetection: () => void;
+  startElection: () => void;
+  startRecovery: () => void;
   setPhase: (phase: FailoverPhase) => void;
   setFailureFlashProgress: (p: number) => void;
   setArcBreakProgress: (p: number) => void;
@@ -111,9 +114,67 @@ export const useFailoverStore = create<FailoverState>((set, get) => ({
       // stays in the same geographic location.
       newPrimaryId: primaryRegion,
       queuedRequests: requests,
-      events: [{ time: 0, label: "Primary node failed!", type: "failure" }],
+      events: [{ time: 0, label: "Leader node failed!", type: "failure" }],
       originalPrimaryId: primaryRegion,
       originalReadRegions: [...readRegions],
+    });
+  },
+
+  startDetection: () => {
+    const state = get();
+    if (state.phase !== "failure" || state.failureFlashProgress < 1) return;
+    set({
+      phase: "detecting",
+      events: [
+        ...state.events,
+        {
+          time: 0,
+          label: "Health checks started",
+          type: "detect",
+        },
+      ],
+    });
+  },
+
+  startElection: () => {
+    const state = get();
+    if (state.phase !== "detecting" || state.detectionProgress < 1) return;
+    set({
+      phase: "electing",
+      events: [
+        ...state.events,
+        {
+          time: state.detectionTimeMs,
+          label: "Failure confirmed by health checks",
+          type: "detect",
+        },
+        {
+          time: state.detectionTimeMs,
+          label: "Backup replica election started",
+          type: "election",
+        },
+      ],
+    });
+  },
+
+  startRecovery: () => {
+    const state = get();
+    if (state.phase !== "elected") return;
+    set({
+      phase: "recovering",
+      events: [
+        ...state.events,
+        {
+          time: state.detectionTimeMs + state.electionTimeMs,
+          label: "Replication connections re-establishing",
+          type: "reconnect",
+        },
+        {
+          time: state.detectionTimeMs + state.electionTimeMs,
+          label: "Queued writes draining to new leader",
+          type: "reconnect",
+        },
+      ],
     });
   },
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
-import { advance, FLASH_PAUSE_MS } from "@/lib/simulation/animation";
+import { advance } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
@@ -18,15 +18,6 @@ export default function ReadFlowVisualization() {
   const nearestRegionId = useReadFlowStore((s) => s.nearestRegionId);
   const fetchProgress = useReadFlowStore((s) => s.fetchProgress);
   const responseProgress = useReadFlowStore((s) => s.responseProgress);
-
-  const arriveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (arriveTimeoutRef.current) clearTimeout(arriveTimeoutRef.current);
-    };
-  }, []);
 
   // Resolve nearest region
   const nearestRegion = nearestRegionId ? getRegionById(nearestRegionId) : null;
@@ -63,13 +54,6 @@ export default function ReadFlowVisualization() {
       if (newProgress >= 1) {
         playAckSound();
         store.onDataFetched();
-        // Pause at replica for flash, then start response
-        arriveTimeoutRef.current = setTimeout(() => {
-          const s = useReadFlowStore.getState();
-          if (s.phase === "arriving") {
-            s.setPhase("responding");
-          }
-        }, FLASH_PAUSE_MS);
       }
     }
 

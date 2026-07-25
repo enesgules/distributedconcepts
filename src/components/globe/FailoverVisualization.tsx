@@ -11,7 +11,6 @@ import { latLonToVector3 } from "@/lib/geo-utils";
 import { computeArcPoints } from "@/lib/arc-utils";
 import {
   advance,
-  FLASH_PAUSE_MS,
   latencyToDuration,
 } from "@/lib/simulation/animation";
 import { GLOBE_RADIUS } from "./Globe";
@@ -234,26 +233,14 @@ export default function FailoverVisualization() {
   const failedRegion = failedRegionId ? getRegionById(failedRegionId) : null;
   const newPrimary = newPrimaryId ? getRegionById(newPrimaryId) : null;
 
-  const phaseTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const soundPlayedRef = useRef<Record<string, boolean>>({});
 
-  // Reset sound flags and clear pending timeouts when phase returns to idle
+  // Reset sound flags when the lesson returns to idle
   useEffect(() => {
     if (phase === "idle") {
       soundPlayedRef.current = {};
-      for (const t of phaseTimeoutsRef.current) clearTimeout(t);
-      phaseTimeoutsRef.current.clear();
     }
   }, [phase]);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    const timeouts = phaseTimeoutsRef.current;
-    return () => {
-      for (const t of timeouts) clearTimeout(t);
-      timeouts.clear();
-    };
-  }, []);
 
   // Main animation loop
   useFrame((_, delta) => {
@@ -269,14 +256,8 @@ export default function FailoverVisualization() {
         soundPlayedRef.current.failure = true;
       }
 
-      if (p >= 1) {
-        store.setPhase("detecting");
+      if (p >= 1 && !store.requestQueueVisible) {
         store.setRequestQueueVisible(true);
-        store.addEvent({
-          time: 0,
-          label: "Failure detected by health checks",
-          type: "detect",
-        });
         store.addEvent({
           time: 0,
           label: `${store.queuedRequests.length} write requests queued`,
@@ -294,22 +275,14 @@ export default function FailoverVisualization() {
       const p = advance(store.detectionProgress, delta, store.detectionTimeMs);
       store.setDetectionProgress(p);
       store.setDowntime(Math.round(p * store.detectionTimeMs));
-
-      if (p >= 1) {
-        if (!soundPlayedRef.current.election) {
-          playElectionPulseSound();
-          soundPlayedRef.current.election = true;
-        }
-        store.setPhase("electing");
-        store.addEvent({
-          time: store.detectionTimeMs,
-          label: "Backup replica election started",
-          type: "election",
-        });
-      }
     }
 
     if (store.phase === "electing") {
+      if (!soundPlayedRef.current.election) {
+        playElectionPulseSound();
+        soundPlayedRef.current.election = true;
+      }
+
       const p = advance(store.electionProgress, delta, store.electionTimeMs);
       store.setElectionProgress(p);
 
@@ -324,25 +297,6 @@ export default function FailoverVisualization() {
         }
         store.onElectionComplete();
         store.setPhase("elected");
-
-        // Pause for gold flash, then recover
-        const t = setTimeout(() => {
-          const s = useFailoverStore.getState();
-          if (s.phase === "elected") {
-            s.setPhase("recovering");
-            s.addEvent({
-              time: s.detectionTimeMs + s.electionTimeMs,
-              label: "Replication connections re-establishing",
-              type: "reconnect",
-            });
-            s.addEvent({
-              time: s.detectionTimeMs + s.electionTimeMs,
-              label: "Queued writes draining to new leader",
-              type: "reconnect",
-            });
-          }
-        }, FLASH_PAUSE_MS);
-        phaseTimeoutsRef.current.add(t);
       }
     }
 
@@ -364,7 +318,7 @@ export default function FailoverVisualization() {
         store.setPhase("complete");
         store.addEvent({
           time: totalDowntime,
-          label: "Primary region fully recovered",
+          label: "Leader region fully recovered",
           type: "resume",
         });
       }

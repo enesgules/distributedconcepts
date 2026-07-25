@@ -28,6 +28,7 @@ interface ReadFlowState {
   ) => void;
   setFetchProgress: (p: number) => void;
   onDataFetched: () => void;
+  startResponse: () => void;
   setResponseProgress: (p: number) => void;
   setPhase: (phase: ReadPhase) => void;
   reset: () => void;
@@ -70,6 +71,11 @@ export const useReadFlowStore = create<ReadFlowState>((set, get) => ({
       phase: "arriving",
       fetchProgress: 1,
     }),
+
+  startResponse: () => {
+    if (get().phase !== "arriving") return;
+    set({ phase: "responding" });
+  },
 
   setResponseProgress: (p) => set({ responseProgress: p }),
 

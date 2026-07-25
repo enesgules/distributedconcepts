@@ -64,12 +64,12 @@ export default function LatencyComparison() {
         {/* Divider */}
         <div className="h-px bg-zinc-800/50" />
 
-        {/* Primary */}
+      {/* Leader */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-zinc-600 text-sm">○</span>
             <div>
-              <p className="text-xs font-medium text-zinc-400">Primary</p>
+              <p className="text-xs font-medium text-zinc-400">Leader</p>
               <p className="text-[10px] text-zinc-600">
                 {primary?.city ?? primaryRegion}
               </p>

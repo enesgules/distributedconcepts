@@ -11,8 +11,36 @@ import {
   estimateLatencyStable,
   staleReadMarginMs,
 } from "@/lib/simulation/latency";
-import { playPacketSendSound } from "@/lib/sounds";
-import { FlowPanel, ExecuteFooter } from "./FlowPanel";
+import { playPacketSendSound, playReplicateSound } from "@/lib/sounds";
+import {
+  FlowPanel,
+  ExecuteFooter,
+  LessonSequence,
+  type LessonBeat,
+} from "./FlowPanel";
+
+const CONSISTENCY_BEATS = [
+  {
+    title: "Commit the new value",
+    detail:
+      "The client writes v2 to the leader. Once the leader commits it, the client receives OK.",
+  },
+  {
+    title: "Open the stale window",
+    detail:
+      "The leader has v2, but the read replica still has v1. This gap lasts until replication arrives.",
+  },
+  {
+    title: "Race read against replication",
+    detail:
+      "Replication and the delayed read now move toward the same replica. Whichever arrives first decides the value.",
+  },
+  {
+    title: "Inspect the winner",
+    detail:
+      "A read that reaches the replica first returns v1. If replication wins, the same read returns v2.",
+  },
+] as const satisfies readonly LessonBeat[];
 
 function predictionLabel(
   readDelay: number,
@@ -75,15 +103,23 @@ export default function ConsistencyRacePanel({
     clientLocation !== null &&
     primary !== null &&
     replica !== null &&
+    replicationMs !== null &&
+    readMs !== null &&
     phase === "idle";
+  const canAdvance = phase === "write-ack";
   const isAnimating =
     phase === "writing" ||
-    phase === "write-ack" ||
     phase === "racing" ||
     phase === "result";
 
   const handleExecute = useCallback(() => {
-    if (!clientLocation || !primary || !primaryRegion || !replica || !replicaRegionId) return;
+    if (
+      !clientLocation ||
+      !primary ||
+      replicationMs === null ||
+      readMs === null
+    )
+      return;
 
     const primaryLatency = estimateLatency(
       clientLocation.lat,
@@ -91,29 +127,42 @@ export default function ConsistencyRacePanel({
       primary.lat,
       primary.lon
     );
-    const replicationLatency =
-      estimateLatencyBetweenRegions(primaryRegion, replicaRegionId) ?? 150;
-    const readLatency = estimateLatency(
-      clientLocation.lat,
-      clientLocation.lon,
-      replica.lat,
-      replica.lon
-    );
-
     playPacketSendSound();
     useConsistencyRaceStore
       .getState()
-      .startRace(primaryLatency, replicationLatency, readLatency);
-  }, [clientLocation, primary, primaryRegion, replica, replicaRegionId]);
+      .startRace(primaryLatency, replicationMs, readMs);
+  }, [clientLocation, primary, readMs, replicationMs]);
+
+  const handleStartRace = useCallback(() => {
+    playReplicateSound();
+    useConsistencyRaceStore.getState().startReplicationRace();
+  }, []);
 
   const handleReplay = useCallback(() => {
     useConsistencyRaceStore.getState().reset();
   }, []);
 
+  const activeBeat =
+    phase === "idle" || phase === "writing"
+      ? 0
+      : phase === "write-ack"
+        ? 1
+        : phase === "racing"
+          ? 2
+          : 3;
+  const actionLabel =
+    phase === "write-ack" ? "Start both clocks" : "Commit v2";
+  const busyLabel =
+    phase === "writing"
+      ? "Committing v2..."
+      : phase === "racing"
+        ? "Racing..."
+        : "Resolving result...";
+
   return (
     <FlowPanel
-      title="Consistency Race"
-      description="Can your read outrun the replication?"
+      title="Expose a Stale Read"
+      description="Control the stale window, then see which request reaches the replica first"
       footer={
         nearestIsPrimary ? (
           <p className="text-center text-[11px] text-zinc-400">
@@ -122,20 +171,31 @@ export default function ConsistencyRacePanel({
         ) : (
           <ExecuteFooter
             complete={phase === "complete"}
-            onExecute={handleExecute}
+            onExecute={
+              phase === "write-ack" ? handleStartRace : handleExecute
+            }
             onReplay={handleReplay}
-            disabled={!canExecute}
+            disabled={!canExecute && !canAdvance}
             busy={isAnimating}
-            executeLabel="Run Race"
-            busyLabel="Racing..."
+            executeLabel={actionLabel}
+            busyLabel={busyLabel}
             replayLabel="Run Again"
-            nextLabel="Test failover"
+            nextLabel="Recover the leader"
             onNext={onNext}
           />
         )
       }
     >
       <>
+        {!nearestIsPrimary && (
+          <LessonSequence
+            beats={CONSISTENCY_BEATS}
+            activeIndex={activeBeat}
+            running={isAnimating}
+            complete={phase === "complete"}
+          />
+        )}
+
         {/* Reading from primary — no race possible */}
         {clientLocation && nearestIsPrimary && (
           <motion.div
@@ -150,15 +210,15 @@ export default function ConsistencyRacePanel({
             <p className="text-xs leading-relaxed text-zinc-300">
               Your nearest region is the{" "}
               <span className="font-semibold text-amber-400">
-                primary ({primary?.city})
+                leader ({primary?.city})
               </span>
               . Since writes and reads both go to the same region, there&apos;s
-              no replication delay — you&apos;ll always read the latest value.
+              no replication delay. You&apos;ll always read the latest value.
             </p>
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
               Eventual consistency only affects reads from{" "}
               <span className="text-emerald-400">read replicas</span>, which
-              need time to receive replicated data from the primary. Try clicking
+              need time to receive replicated data from the leader. Try clicking
               the globe closer to a replica region to see the race.
             </p>
           </motion.div>
@@ -175,7 +235,7 @@ export default function ConsistencyRacePanel({
                   {primary?.city}
                 </span>
                 <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-400">
-                  Primary
+                  Leader
                 </span>
               </>
             ) : (
@@ -236,14 +296,14 @@ export default function ConsistencyRacePanel({
                   .getState()
                   .setReadDelay(Number(e.target.value))
               }
-              disabled={isAnimating}
+              disabled={phase !== "idle"}
               className="w-full accent-cyan-400 disabled:opacity-40"
             />
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
               How long to wait after writing before reading from{" "}
               {replica?.city ?? "the replica"}.
               {replicationMs !== null && primary && (
-                <> Replication from {primary.city} takes ~{replicationMs}ms — read too soon and {replica?.city ?? "the replica"} won&apos;t have the update yet.</>
+                <> Replication from {primary.city} takes ~{replicationMs}ms. Read too soon and {replica?.city ?? "the replica"} won&apos;t have the update yet.</>
               )}
             </p>
             {prediction && phase === "idle" && (
@@ -379,7 +439,7 @@ export default function ConsistencyRacePanel({
                   <span className="font-mono font-semibold text-cyan-400">
                     {readDelay + readLatencyMs}ms
                   </span>{" "}
-                  ({readDelay}ms delay + {readLatencyMs}ms network) — by that
+                  ({readDelay}ms delay + {readLatencyMs}ms network). By that
                   point, {replica?.city} already had the latest data.
                 </>
               )}
