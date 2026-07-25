@@ -151,7 +151,7 @@ export default function FailoverPanel({
 
   return (
     <FlowPanel
-      title="Recover the Leader"
+      title="Recover from Failure"
       description="Advance through detection, election, and traffic recovery"
       footer={
         <>
@@ -182,7 +182,7 @@ export default function FailoverPanel({
                   onClick={onRestart}
                   className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                 >
-                  Start over
+                  Return to curriculum
                 </button>
               )}
               <button

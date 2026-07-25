@@ -181,7 +181,7 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
 
   return (
     <FlowPanel
-      title="Route a Read"
+      title="Read from a Replica"
       description="Follow the router's choice, the local lookup, and the response"
       footer={
         <ExecuteFooter
@@ -194,7 +194,7 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
           busy={isAnimating}
           executeLabel={actionLabel}
           busyLabel={busyLabel}
-          nextLabel="Expose a stale read"
+          nextLabel="Observe a stale read"
           onNext={onNext}
         />
       }

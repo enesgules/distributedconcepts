@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import SoundToggle from "@/components/ui/SoundToggle";
-import WelcomeButton from "@/components/ui/WelcomeButton";
+import CurriculumButton from "@/components/ui/CurriculumButton";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -88,7 +88,7 @@ export default function RootLayout({
             </svg>
           </a>
           <SoundToggle />
-          <WelcomeButton />
+          <CurriculumButton />
         </div>
       </body>
     </html>

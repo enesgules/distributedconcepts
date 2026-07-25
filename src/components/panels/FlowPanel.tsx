@@ -90,17 +90,14 @@ export function LessonSequence({
                     initial={{
                       opacity: 0,
                       scale: 0.25,
-                      filter: "blur(4px)",
                     }}
                     animate={{
                       opacity: 1,
                       scale: 1,
-                      filter: "blur(0px)",
                     }}
                     exit={{
                       opacity: 0,
                       scale: 0.25,
-                      filter: "blur(4px)",
                     }}
                     transition={{
                       type: "spring",
@@ -131,12 +128,10 @@ export function LessonSequence({
         initial={{
           opacity: 0,
           transform: "translateY(4px)",
-          filter: "blur(2px)",
         }}
         animate={{
           opacity: 1,
           transform: "translateY(0px)",
-          filter: "blur(0px)",
         }}
         transition={{
           duration: 0.18,

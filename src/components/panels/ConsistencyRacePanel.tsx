@@ -161,7 +161,7 @@ export default function ConsistencyRacePanel({
 
   return (
     <FlowPanel
-      title="Expose a Stale Read"
+      title="Observe a Stale Read"
       description="Control the stale window, then see which request reaches the replica first"
       footer={
         nearestIsPrimary ? (
@@ -180,7 +180,7 @@ export default function ConsistencyRacePanel({
             executeLabel={actionLabel}
             busyLabel={busyLabel}
             replayLabel="Run Again"
-            nextLabel="Recover the leader"
+            nextLabel="Recover from failure"
             onNext={onNext}
           />
         )

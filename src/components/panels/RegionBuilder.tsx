@@ -208,10 +208,10 @@ export default function RegionBuilder({
       {/* Header */}
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
         <h2 className="text-balance text-lg font-semibold text-zinc-100">
-          Add a Read Replica
+          Replicate the Data
         </h2>
         <p className="mt-1 text-pretty text-xs text-zinc-400">
-          Your leader commits every write. Add a copy closer to distant readers.
+          Your first node accepts writes. Add a copy closer to distant readers.
         </p>
 
         {/* Step indicator */}

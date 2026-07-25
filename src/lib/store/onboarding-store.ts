@@ -1,30 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { StepId } from "@/lib/steps";
 
 interface OnboardingState {
-  hasSeenWelcome: boolean;
-  completedSteps: number[];
+  completedStepIds: StepId[];
 
-  setWelcomeSeen: () => void;
-  markStepComplete: (step: number) => void;
-  resetProgress: () => void;
+  markStepComplete: (stepId: StepId) => void;
 }
 
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set, get) => ({
-      hasSeenWelcome: false,
-      completedSteps: [],
+      completedStepIds: [],
 
-      setWelcomeSeen: () => set({ hasSeenWelcome: true }),
-      markStepComplete: (step) => {
-        if (get().completedSteps.includes(step)) return;
-        set({ completedSteps: [...get().completedSteps, step] });
+      markStepComplete: (stepId) => {
+        if (get().completedStepIds.includes(stepId)) return;
+        set({ completedStepIds: [...get().completedStepIds, stepId] });
       },
-      resetProgress: () => set({ hasSeenWelcome: false, completedSteps: [] }),
     }),
     {
-      name: "distributed-concepts-onboarding:v3",
+      name: "distributed-concepts-onboarding:v5",
     }
   )
 );

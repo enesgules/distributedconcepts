@@ -1,8 +1,8 @@
 # Distributed Concepts
 
-Interactive 3D curriculum for distributed database concepts. Learners build a
-small global topology, then advance each write, read, consistency, and recovery
-simulation one system action at a time.
+Interactive 3D curriculum for distributed systems. Learners can follow the
+course from the beginning or jump from the homepage to an available lesson,
+then advance each simulation one system action at a time.
 
 ## Stack
 
@@ -26,9 +26,15 @@ deploy to the production Vercel project at `distributedconcepts.com`.
 
 ## Application architecture
 
-`src/app/page.tsx` owns the six-lesson route, responsive layout, globe
-composition, and lesson completion. The globe stays mounted while lesson
-panels and visualizations change.
+`src/app/page.tsx` owns the curriculum home, six interactive lessons,
+responsive layout, globe composition, readable lesson URLs, and lesson
+completion. The globe stays mounted while the homepage, lesson panels, and
+visualizations change.
+
+Lesson navigation writes `?lesson=<slug>` with the History API. Browser Back,
+browser Forward, Escape, and the curriculum button must restore the matching
+view without reloading the globe. Keep legacy `?step=<index>` URLs readable,
+but normalize them to the lesson slug.
 
 Each simulation uses three pieces:
 
@@ -48,14 +54,28 @@ rail. Use it for the current action, its explanation, and completed actions.
 
 The lesson registry lives in `src/lib/steps.ts`.
 
-| Lesson | Concept | Interaction |
+| Interactive lesson | Concept | Interaction |
 | --- | --- | --- |
-| Place the Leader | One region commits every write | Choose the write region |
-| Add a Read Replica | Nearby copies reduce read latency | Add a replica and compare coverage |
-| Commit a Write | Acknowledgment precedes remote replication | Send → commit → replicate |
-| Route a Read | Reads use the nearest available copy | Route → fetch → return |
-| Expose a Stale Read | A read can beat replication | Commit → open window → race → inspect |
-| Recover the Leader | Writes pause while a replacement is chosen | Fail → detect → elect → resume |
+| Build a Distributed Service | Nodes accept client work through network messages | Choose the write node |
+| Replicate the Data | Nearby copies reduce read latency | Add a replica and compare coverage |
+| Follow a Write | Acknowledgment precedes remote replication | Send → commit → replicate |
+| Read from a Replica | Reads use the nearest available copy | Route → fetch → return |
+| Observe a Stale Read | A read can beat replication | Commit → open window → race → inspect |
+| Recover from Failure | Writes pause while a replacement is chosen | Fail → detect → elect → resume |
+
+The full curriculum is grouped into four chapters in `src/lib/steps.ts`:
+
+1. Distribution changes the rules
+2. Copies disagree
+3. Agree through failure
+4. Distribute the workload
+
+Use the `interactive` and `planned` lesson variants to keep future classes
+visible without making them clickable.
+
+The opening lesson has a deliberate checkpoint after node placement. It must
+explain the client request, network message, and node-local state change before
+the learner advances to replication.
 
 Current phase checkpoints:
 
@@ -117,14 +137,19 @@ The database topology and simulation phases live in separate Zustand stores.
 Moving the shared client resets any active simulation so visuals cannot retain
 progress for the previous location.
 
-The onboarding store persists only welcome and lesson completion state. Bump
-its storage key when a curriculum rewrite should be shown to returning users.
+The onboarding store persists lesson completion state. Bump its storage key
+when a curriculum rewrite invalidates existing progress.
+
+Persist completion by stable `StepId`, never by array position. Direct lesson
+entry may prepare the minimum valid same-provider topology needed by a
+simulation, but prerequisite setup is not prerequisite completion. Only an
+action taken while that lesson is active can award its completion.
 
 ## Change discipline
 
 - Keep changes scoped to the requested lesson or interaction.
 - Preserve unrelated worktree changes.
-- Update `src/lib/steps.ts`, the welcome lesson list, README curriculum, and
+- Update `src/lib/steps.ts`, the curriculum homepage, README curriculum, and
   this guide when lesson names or order change.
 - Update the panel, store, and visualization together when a phase changes.
 - Do not describe an automatic transition as learner-controlled unless the

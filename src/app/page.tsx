@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Transition } from "framer-motion";
 import GlobeScene from "@/components/globe/GlobeScene";
 import ConnectionArcs from "@/components/globe/ConnectionArcs";
 import LatencyHeatmap from "@/components/globe/LatencyHeatmap";
@@ -20,6 +20,7 @@ import ConsistencyRacePanel from "@/components/panels/ConsistencyRacePanel";
 import FailoverPanel from "@/components/panels/FailoverPanel";
 import FailoverTimeline from "@/components/panels/FailoverTimeline";
 import LearningPathNav from "@/components/ui/LearningPathNav";
+import CurriculumHome from "@/components/ui/CurriculumHome";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { useDatabaseStore } from "@/lib/store/database-store";
@@ -30,13 +31,51 @@ import { useFailoverStore } from "@/lib/store/failover-store";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { getRegionById, regions, type Region } from "@/lib/regions";
 import { findNearestRegion } from "@/lib/simulation/latency";
-import { STEPS, LAST_STEP } from "@/lib/steps";
+import {
+  STEPS,
+  LAST_STEP,
+  getStepIndexBySlug,
+  type ChapterId,
+} from "@/lib/steps";
+import { OPEN_CURRICULUM_EVENT } from "@/lib/navigation";
 import { playSelectSound, playRegionToggleSound } from "@/lib/sounds";
 
 // Fallback client position when geolocation is unavailable (Istanbul \u2014
 // deliberately not an existing region, so routing stays interesting)
 const DEFAULT_CLIENT = { lat: 41.0, lon: 28.98 };
 const ALL_REGION_IDS = regions.map((region) => region.id);
+const HOME_STEP = -1;
+
+type LocationTarget =
+  | { kind: "home" }
+  | { kind: "lesson"; step: number; legacy: boolean };
+
+function readLocationTarget(): LocationTarget {
+  const params = new URLSearchParams(window.location.search);
+  const lessonIndex = getStepIndexBySlug(params.get("lesson") ?? "");
+  if (lessonIndex >= 0) {
+    return { kind: "lesson", step: lessonIndex, legacy: false };
+  }
+
+  const legacyStepParam = params.get("step");
+  const legacyStep =
+    legacyStepParam === null ? Number.NaN : Number(legacyStepParam);
+  if (
+    Number.isInteger(legacyStep) &&
+    legacyStep >= 0 &&
+    legacyStep <= LAST_STEP
+  ) {
+    return { kind: "lesson", step: legacyStep, legacy: true };
+  }
+
+  return { kind: "home" };
+}
+
+function getNavigationUrl(step: number): string {
+  return step === HOME_STEP
+    ? window.location.pathname
+    : `${window.location.pathname}?lesson=${STEPS[step].slug}`;
+}
 
 // Set the client in all three flow stores so placing it once carries
 // across the Write, Read, and Consistency steps. Skips stores already at
@@ -52,6 +91,41 @@ function setSharedClientLocation(lat: number, lon: number) {
       store.getState().setClientLocation(lat, lon);
     }
   }
+}
+
+function resetLessonSimulations() {
+  useWriteFlowStore.getState().reset();
+  useReadFlowStore.getState().reset();
+  useConsistencyRaceStore.getState().reset();
+  useFailoverStore.getState().reset();
+}
+
+function OpeningMessageFlow({ city }: { city: string }) {
+  const labels = ["client", "message", city];
+
+  return (
+    <div className="relative mx-auto mt-4 h-14 max-w-xs text-emerald-300">
+      <div className="absolute left-7 right-7 top-2.5 h-px overflow-hidden bg-white/10">
+        <span className="curriculum-signal-line block h-full origin-left bg-current" />
+      </div>
+      <div className="absolute inset-x-0 top-0 flex justify-between">
+        {labels.map((label, index) => (
+          <div
+            key={label}
+            className="flex w-20 flex-col items-center gap-2.5"
+          >
+            <span
+              className="curriculum-signal-node block h-2.5 w-2.5 rounded-full bg-zinc-950 text-current shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_14px_currentColor]"
+              style={{ animationDelay: `${index * 0.9}s` }}
+            />
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500">
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── Panel animation variants ─────────────────────────────────────────
@@ -74,18 +148,44 @@ const rightPanelVariants = {
 };
 
 const panelTransition = {
-  type: "tween" as const,
+  type: "tween",
   duration: 0.22,
-  ease: [0.23, 1, 0.32, 1] as const,
-};
+  ease: [0.23, 1, 0.32, 1],
+} satisfies Transition;
 
 export default function Home() {
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(HOME_STEP);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [homeChapterId, setHomeChapterId] =
+    useState<ChapterId>("foundations");
   const isLoaded = minTimeElapsed && globeReady;
+  const isHome = activeStep === HOME_STEP;
   const isLanding = activeStep === 0;
+  const activeLesson =
+    activeStep >= 0 ? STEPS[activeStep] : STEPS[0];
+
+  const navigateToStep = useCallback((step: number) => {
+    if (step < HOME_STEP || step > LAST_STEP) return;
+    setActiveStep(step);
+    if (step >= 0) setHomeChapterId(STEPS[step].chapterId);
+
+    const url = getNavigationUrl(step);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (url !== currentUrl) window.history.pushState(null, "", url);
+  }, []);
+
+  const openFromCurriculum = useCallback(
+    (step: number) => {
+      if (step === 0) {
+        useDatabaseStore.getState().reset();
+        resetLessonSimulations();
+      }
+      navigateToStep(step);
+    },
+    [navigateToStep]
+  );
 
   useEffect(() => {
     const t = setTimeout(() => setMinTimeElapsed(true), 800);
@@ -95,8 +195,6 @@ export default function Home() {
   const handleGlobeReady = useCallback(() => {
     setGlobeReady(true);
   }, []);
-
-  const hasSeenWelcome = useOnboardingStore((s) => s.hasSeenWelcome);
 
   // ── Mobile detection (matches Tailwind's md: breakpoint) ──────────
   useEffect(() => {
@@ -109,38 +207,71 @@ export default function Home() {
 
   // ── Shareable step URLs ───────────────────────────────────────────
   useEffect(() => {
-    const step = Number(new URLSearchParams(window.location.search).get("step"));
-    if (Number.isInteger(step) && step >= 1 && step <= LAST_STEP)
+    const target = readLocationTarget();
+    if (target.kind === "lesson") {
       // One-time sync from the URL after hydration; a lazy initializer would
-      // mismatch the server-rendered step-0 markup
+      // mismatch the server-rendered curriculum markup
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveStep(step);
+      setActiveStep(target.step);
+      setHomeChapterId(STEPS[target.step].chapterId);
+      if (target.legacy) {
+        window.history.replaceState(
+          null,
+          "",
+          getNavigationUrl(target.step)
+        );
+      }
+    }
   }, []);
 
   useEffect(() => {
-    window.history.replaceState(
-      null,
-      "",
-      activeStep === 0 ? window.location.pathname : `?step=${activeStep}`
-    );
-  }, [activeStep]);
+    const restoreFromHistory = () => {
+      const target = readLocationTarget();
+      if (target.kind === "home") {
+        setActiveStep(HOME_STEP);
+        return;
+      }
+
+      setActiveStep(target.step);
+      setHomeChapterId(STEPS[target.step].chapterId);
+    };
+
+    window.addEventListener("popstate", restoreFromHistory);
+    return () => window.removeEventListener("popstate", restoreFromHistory);
+  }, []);
+
+  useEffect(() => {
+    const openCurriculum = () => navigateToStep(HOME_STEP);
+    window.addEventListener(OPEN_CURRICULUM_EVENT, openCurriculum);
+    return () =>
+      window.removeEventListener(OPEN_CURRICULUM_EVENT, openCurriculum);
+  }, [navigateToStep]);
 
   // ── Keyboard navigation (← / →) ───────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activeStep !== HOME_STEP) {
+        navigateToStep(HOME_STEP);
+        return;
+      }
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      if (isHome) return;
       if (
         e.target instanceof HTMLElement &&
-        e.target.closest("input, textarea, select, [contenteditable]")
+        e.target.closest(
+          "button, a, input, textarea, select, [contenteditable]"
+        )
       )
         return;
-      setActiveStep((s) =>
-        e.key === "ArrowRight" ? Math.min(s + 1, LAST_STEP) : Math.max(s - 1, 0)
+      navigateToStep(
+        e.key === "ArrowRight"
+          ? Math.min(activeStep + 1, LAST_STEP)
+          : Math.max(activeStep - 1, 0)
       );
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [activeStep, isHome, navigateToStep]);
 
   // ── Responsive Framer variants ────────────────────────────────────
   const leftPanelVariants = isMobile
@@ -161,18 +292,41 @@ export default function Home() {
     )?.region;
   }, [geo]);
 
+  // Every simulation is tied to one topology. Replacing the leader or replicas
+  // invalidates completed phases, events, and client routes from the old one.
+  useEffect(() => {
+    resetLessonSimulations();
+  }, [primaryRegion, readRegions]);
+
   // ── Step-specific setup ─────────────────────────────────────────────
 
-  // Steps 2-5: ensure default regions exist
+  // Direct entry must prepare a valid same-provider topology without counting
+  // that setup as learner progress.
   useEffect(() => {
     if (activeStep < 2) return;
-    const { primaryRegion, setPrimary, addReadRegion } =
-      useDatabaseStore.getState();
-    if (!primaryRegion) {
-      setPrimary("us-east-1");
-      addReadRegion("eu-west-1");
-      addReadRegion("ap-southeast-1");
-      if (activeStep === 5) addReadRegion("ap-northeast-1");
+    const database = useDatabaseStore.getState();
+    const primaryId = database.primaryRegion ?? "us-east-1";
+    if (!database.primaryRegion) database.setPrimary(primaryId);
+
+    const latestDatabase = useDatabaseStore.getState();
+    if (latestDatabase.readRegions.length > 0) return;
+
+    const primary = getRegionById(primaryId);
+    if (!primary) return;
+    const replica =
+      regions.find(
+        (region) =>
+          region.provider === primary.provider &&
+          region.id !== primary.id &&
+          region.continent !== primary.continent
+      ) ??
+      regions.find(
+        (region) =>
+          region.provider === primary.provider && region.id !== primary.id
+      );
+
+    if (replica) {
+      latestDatabase.addReadRegion(replica.id);
     }
   }, [activeStep]);
 
@@ -180,17 +334,6 @@ export default function Home() {
   // → fixed fallback) so Execute/Run Race are never dead on arrival
   useEffect(() => {
     if (activeStep < 2 || activeStep > 4) return;
-
-    // The read lesson introduces a reader near the replica the learner chose.
-    // Carry that same reader into the consistency lesson so the replica race
-    // works without asking the learner to hunt for a location on the globe.
-    if (activeStep === 3 && readRegions.length > 0) {
-      const replica = getRegionById(readRegions[0]);
-      if (replica) {
-        setSharedClientLocation(replica.lat, replica.lon);
-        return;
-      }
-    }
 
     const existing =
       activeStep === 4
@@ -200,6 +343,20 @@ export default function Home() {
         : useWriteFlowStore.getState().clientLocation ??
           useReadFlowStore.getState().clientLocation ??
           useConsistencyRaceStore.getState().clientLocation;
+
+    // These lessons begin with a reader near a replica so their advertised
+    // routing and stale-read behavior is ready without extra globe hunting.
+    if (
+      (activeStep === 3 || activeStep === 4) &&
+      readRegions.length > 0
+    ) {
+      const replica = getRegionById(readRegions[0]);
+      if (replica) {
+        setSharedClientLocation(replica.lat, replica.lon);
+        return;
+      }
+    }
+
     const loc = existing ?? geo ?? DEFAULT_CLIENT;
     setSharedClientLocation(loc.lat, loc.lon);
   }, [activeStep, geo, readRegions]);
@@ -208,12 +365,13 @@ export default function Home() {
   const handleRegionClick = useCallback(
     (region: Region) => {
       if (activeStep === 0) {
-        // Landing: choose a clean primary, then enter the region builder.
         playSelectSound();
         const database = useDatabaseStore.getState();
         database.reset();
         database.setPrimary(region.id);
-        setActiveStep(1);
+        useOnboardingStore
+          .getState()
+          .markStepComplete("distributed-service");
         return;
       }
       if (activeStep === 1) {
@@ -236,18 +394,16 @@ export default function Home() {
     const database = useDatabaseStore.getState();
     database.reset();
     database.setPrimary(suggestedRegion.id);
-    setActiveStep(1);
+    useOnboardingStore
+      .getState()
+      .markStepComplete("distributed-service");
   }, [suggestedRegion]);
 
   const restartJourney = useCallback(() => {
-    useFailoverStore.getState().reset();
     useDatabaseStore.getState().reset();
-    useWriteFlowStore.getState().reset();
-    useReadFlowStore.getState().reset();
-    useConsistencyRaceStore.getState().reset();
-    useOnboardingStore.getState().resetProgress();
-    setActiveStep(0);
-  }, []);
+    resetLessonSimulations();
+    navigateToStep(HOME_STEP);
+  }, [navigateToStep]);
 
   // ── Globe click handler (steps 2-4) ─────────────────────────────────
   const handleGlobeClick = useCallback(
@@ -326,13 +482,28 @@ export default function Home() {
   const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
 
   useEffect(() => {
-    if (activeStep > 0) markStepComplete(0);
-    if (primaryRegion && readRegions.length > 0) markStepComplete(1);
-    if (writePhase === "complete") markStepComplete(2);
-    if (readPhase === "complete") markStepComplete(3);
-    if (racePhase === "result" || racePhase === "complete")
-      markStepComplete(4);
-    if (failoverPhase === "complete") markStepComplete(5);
+    if (
+      activeStep === 1 &&
+      primaryRegion &&
+      readRegions.length > 0
+    ) {
+      markStepComplete("replication");
+    }
+    if (activeStep === 2 && writePhase === "complete") {
+      markStepComplete("write-path");
+    }
+    if (activeStep === 3 && readPhase === "complete") {
+      markStepComplete("replica-read");
+    }
+    if (
+      activeStep === 4 &&
+      (racePhase === "result" || racePhase === "complete")
+    ) {
+      markStepComplete("stale-read");
+    }
+    if (activeStep === 5 && failoverPhase === "complete") {
+      markStepComplete("recovery");
+    }
   }, [
     activeStep,
     primaryRegion,
@@ -345,7 +516,9 @@ export default function Home() {
   ]);
 
   const isCurrentStepComplete =
-    activeStep === 0
+    isHome
+      ? false
+      : activeStep === 0
       ? primaryRegion !== null
       : activeStep === 1
         ? primaryRegion !== null && readRegions.length > 0
@@ -386,7 +559,7 @@ export default function Home() {
       left: (
         <RegionBuilder
           suggestedRegionId={suggestedRegion?.id}
-          onNext={() => setActiveStep(2)}
+          onNext={() => navigateToStep(2)}
         />
       ),
       right: <LatencyStats />,
@@ -403,7 +576,7 @@ export default function Home() {
           <WriteFlowVisualization />
         </>
       ),
-      left: <WritePanel onNext={() => setActiveStep(3)} />,
+      left: <WritePanel onNext={() => navigateToStep(3)} />,
       right: isMobile ? null : <EventTimeline />,
       regionsClickable: true,
       clientPlaceable: true,
@@ -419,7 +592,7 @@ export default function Home() {
           <ReadFlowVisualization />
         </>
       ),
-      left: <ReadPanel onNext={() => setActiveStep(4)} />,
+      left: <ReadPanel onNext={() => navigateToStep(4)} />,
       right: <LatencyComparison />,
       regionsClickable: true,
       clientPlaceable: true,
@@ -448,7 +621,7 @@ export default function Home() {
         <ConsistencyRacePanel
           replicaRegionId={replicaRegionId}
           nearestIsPrimary={nearestIsPrimary}
-          onNext={() => setActiveStep(5)}
+          onNext={() => navigateToStep(5)}
         />
       ),
       right: null,
@@ -473,15 +646,29 @@ export default function Home() {
       hideUserLocation: false,
     },
   ];
-  const view = stepViews[activeStep];
-  const hasRightPanel = view.right !== null && !isLanding;
+  const homeView = {
+    viz: null,
+    left: null,
+    right: null,
+    regionsClickable: false,
+    clientPlaceable: false,
+    showUserDbConnection: false,
+    hideUserLocation: false,
+  };
+  const view = isHome ? homeView : stepViews[activeStep];
+  const hasRightPanel = view.right !== null && !isLanding && !isHome;
+  const placedPrimary = primaryRegion
+    ? getRegionById(primaryRegion)
+    : null;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0a]">
+    <div className="relative h-dvh w-screen overflow-hidden bg-[#0a0a0a]">
       {/* Full-screen globe — stays mounted across ALL modes */}
       <div
-        className={`absolute inset-0 transition-transform duration-700 ease-in-out ${
-          isLanding ? "translate-x-0" : "-translate-y-[20vh] md:translate-y-0 md:translate-x-[190px]"
+        className={`absolute inset-0 transition-transform duration-300 ease-[cubic-bezier(0.77,0,0.175,1)] ${
+          isHome || isLanding
+            ? "translate-x-0"
+            : "-translate-y-[20vh] md:translate-y-0 md:translate-x-[190px]"
         }`}
       >
         <GlobeScene
@@ -489,11 +676,11 @@ export default function Home() {
           onReady={handleGlobeReady}
           onRegionClick={view.regionsClickable ? handleRegionClick : undefined}
           onGlobeClick={view.clientPlaceable ? handleGlobeClick : undefined}
-          selectedRegions={isLanding ? [] : readRegions}
-          primaryRegion={isLanding ? null : globePrimaryRegion}
+          selectedRegions={isHome || isLanding ? [] : readRegions}
+          primaryRegion={isHome ? null : globePrimaryRegion}
           showUserDbConnection={view.showUserDbConnection}
           hideUserLocation={view.hideUserLocation}
-          cameraTarget={isLanding ? undefined : cameraTarget}
+          cameraTarget={isHome || isLanding ? undefined : cameraTarget}
         >
           {view.viz}
         </GlobeScene>
@@ -503,39 +690,77 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-40 md:h-72 bg-linear-to-b from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 md:h-72 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
 
-      {/* ═══ Landing UI (step 0) ═══ */}
+      {/* ═══ Curriculum home ═══ */}
       <AnimatePresence>
-        {isLanding && hasSeenWelcome && isLoaded && (
+        {isHome && isLoaded ? (
+          <CurriculumHome
+            key="curriculum-home"
+            activeChapterId={homeChapterId}
+            onChapterChange={setHomeChapterId}
+            onStart={() => openFromCurriculum(0)}
+            onSelectLesson={openFromCurriculum}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      {/* ═══ Opening lesson UI (step 0) ═══ */}
+      <AnimatePresence>
+        {isLanding && isLoaded && (
           <motion.div
             key="landing-header"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
+            initial={{
+              opacity: 0,
+              transform: "translate3d(0, -12px, 0)",
+            }}
+            animate={{
+              opacity: 1,
+              transform: "translate3d(0, 0, 0)",
+            }}
+            exit={{
+              opacity: 0,
+              transform: "translate3d(0, -8px, 0)",
+            }}
+            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-4 pt-20 md:pt-8"
           >
             <div className="pointer-events-auto w-full max-w-md rounded-3xl bg-zinc-950/82 px-5 py-4 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7 sm:py-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
-                Lesson 1 of 6
+                {placedPrimary ? "Node placed" : `Lesson 1 of ${STEPS.length}`}
               </p>
               <h1 className="mt-2 text-balance text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
-                Place the write leader
+                {placedPrimary
+                  ? `${placedPrimary.city} accepts writes`
+                  : "Build a distributed service"}
               </h1>
               <p className="mx-auto mt-2 max-w-sm text-pretty text-xs leading-relaxed text-zinc-400 sm:text-sm">
-                Every write must reach this one region before it can commit.
-                Pick a glowing location and keep its distance in mind.
+                {placedPrimary
+                  ? "A client sends a request as a message. This node receives it, orders the write, and changes its own local state."
+                  : "A node is one independently running member of the system. Choose the node that will accept and order writes."}
               </p>
-              {suggestedRegion && (
+              {placedPrimary ? (
+                <>
+                  <OpeningMessageFlow city={placedPrimary.city} />
+                  <button
+                    onClick={() => navigateToStep(1)}
+                    className="mt-3 min-h-11 rounded-full bg-emerald-400 pl-5 pr-[18px] text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+                  >
+                    Add a replica
+                    <span className="ml-2 opacity-70" aria-hidden="true">
+                      →
+                    </span>
+                  </button>
+                </>
+              ) : suggestedRegion ? (
                 <button
                   onClick={startWithSuggestedRegion}
                   className="mt-4 min-h-11 rounded-full bg-emerald-400 pl-5 pr-4 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                 >
-                  Place leader in {suggestedRegion.city}
+                  Place the first node in {suggestedRegion.city}
                   <span className="ml-2" aria-hidden="true">
                     →
                   </span>
                 </button>
-              )}
+              ) : null}
             </div>
           </motion.div>
         )}
@@ -547,7 +772,7 @@ export default function Home() {
       {/* Sync mode (no mode="wait"): waiting for exit can drop the incoming
           panel entirely when steps change rapidly (arrow keys) */}
       <AnimatePresence>
-        {!isLanding && (
+        {!isHome && !isLanding && (
           <motion.div
             key={`left-${activeStep}`}
             variants={leftPanelVariants}
@@ -571,7 +796,7 @@ export default function Home() {
             <div className="md:hidden shrink-0 grid grid-cols-[44px_1fr_44px] items-center gap-2 px-2 py-2 border-t border-zinc-800/50 pb-safe">
               {/* Back button */}
               <button
-                onClick={() => setActiveStep((s) => Math.max(s - 1, 0))}
+                onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
                 className={`flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 transition-[border-color,color,scale] duration-150 hover:border-emerald-500/50 hover:text-emerald-400 active:scale-[0.96] ${
                   activeStep <= 0 ? "opacity-30 pointer-events-none" : ""
                 }`}
@@ -587,7 +812,7 @@ export default function Home() {
                   Step {activeStep + 1} of {STEPS.length}
                 </p>
                 <p className="truncate text-xs font-medium text-zinc-300">
-                  {STEPS[activeStep].title}
+                  {activeLesson.title}
                 </p>
               </div>
 
@@ -596,7 +821,7 @@ export default function Home() {
                 onClick={() =>
                   activeStep >= LAST_STEP
                     ? restartJourney()
-                    : setActiveStep((s) => Math.min(s + 1, LAST_STEP))
+                    : navigateToStep(Math.min(activeStep + 1, LAST_STEP))
                 }
                 disabled={activeStep >= LAST_STEP && !isCurrentStepComplete}
                 className={`flex h-11 w-11 items-center justify-center rounded-full border transition-[background-color,border-color,color,scale] duration-150 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30 ${
@@ -606,8 +831,8 @@ export default function Home() {
                 }`}
                 aria-label={
                   activeStep >= LAST_STEP
-                    ? "Start over"
-                    : `Next: ${STEPS[activeStep].nextAction}`
+                    ? "Return to curriculum"
+                    : `Next: ${activeLesson.nextAction}`
                 }
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0">
@@ -637,34 +862,36 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Bottom: Learning Path Nav — desktop only */}
-      <div
-        className={`hidden md:flex absolute right-0 z-20 flex-col items-center gap-3 pb-6 transition-[left] duration-500 ease-in-out left-0 ${
+      {!isHome && (
+        <div
+          className={`hidden md:flex absolute right-0 z-20 flex-col items-center gap-3 pb-6 transition-[left] duration-500 ease-in-out left-0 ${
           isLanding
             ? "bottom-0"
             : "bottom-0 md:left-[380px]"
         }`}
-      >
-        <LearningPathNav
-          activeStep={activeStep}
-          onStepChange={setActiveStep}
-        />
-        <p className="text-xs text-zinc-400">{STEPS[activeStep].hint}</p>
-      </div>
+        >
+          <LearningPathNav
+            activeStep={activeStep}
+            onStepChange={navigateToStep}
+          />
+          <p className="text-xs text-zinc-400">{activeLesson.hint}</p>
+        </div>
+      )}
 
       {/* Mobile: Landing nav (step 0 only, since steps 1-5 have nav in panel) */}
       {isLanding && (
         <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center gap-2 pb-4">
           <LearningPathNav
             activeStep={activeStep}
-            onStepChange={setActiveStep}
+            onStepChange={navigateToStep}
           />
         </div>
       )}
 
       {/* Back step button — desktop only */}
-      {!isLanding && activeStep > 0 && (
+      {!isHome && !isLanding && activeStep > 0 && (
         <button
-          onClick={() => setActiveStep((s) => Math.max(s - 1, 0))}
+          onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
           className="hidden md:flex fixed left-[396px] top-1/2 z-30 -translate-y-1/2 cursor-pointer items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/80 px-4 py-2.5 text-sm text-zinc-400 backdrop-blur-sm transition-colors hover:border-emerald-500/50 hover:text-emerald-400"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">

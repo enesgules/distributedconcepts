@@ -15,7 +15,7 @@ export default function LearningPathNav({
   onStepChange,
   compact = false,
 }: LearningPathNavProps) {
-  const completedSteps = useOnboardingStore((s) => s.completedSteps);
+  const completedStepIds = useOnboardingStore((s) => s.completedStepIds);
 
   return (
     <motion.div
@@ -32,7 +32,8 @@ export default function LearningPathNav({
         {STEPS.map((exp, i) => {
           const isActive = i === activeStep;
           const isClickable = !isActive && onStepChange !== undefined;
-          const isCompleted = completedSteps.includes(i) && !isActive;
+          const isCompleted =
+            completedStepIds.includes(exp.id) && !isActive;
           const stateLabel = isActive
             ? "current"
             : isCompleted
@@ -64,17 +65,14 @@ export default function LearningPathNav({
                     initial={{
                       opacity: 0,
                       scale: 0.25,
-                      filter: "blur(4px)",
                     }}
                     animate={{
                       opacity: 1,
                       scale: 1,
-                      filter: "blur(0px)",
                     }}
                     exit={{
                       opacity: 0,
                       scale: 0.25,
-                      filter: "blur(4px)",
                     }}
                     transition={{
                       type: "spring",
@@ -125,7 +123,7 @@ export default function LearningPathNav({
           );
 
           return (
-            <div key={exp.shortTitle} className="flex items-center">
+            <div key={exp.id} className="flex items-center">
               <button
                 onClick={
                   isClickable ? () => onStepChange?.(i) : undefined
@@ -143,7 +141,11 @@ export default function LearningPathNav({
 
               {/* Connector */}
               {i < STEPS.length - 1 && (
-                <div className={`h-px border-t border-dashed border-zinc-800 ${compact ? "w-1" : "w-2 md:w-4"}`} />
+                <div
+                  className={`h-px border-t border-dashed border-zinc-800 ${
+                    compact ? "w-1" : "w-2 md:w-4"
+                  }`}
+                />
               )}
             </div>
           );

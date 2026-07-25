@@ -149,8 +149,8 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
 
   return (
     <FlowPanel
-      title="Commit a Write"
-      description="See why the client gets OK before every replica has the value"
+      title="Follow a Write"
+      description="Advance through the commit, acknowledgement, and background copy"
       footer={
         <ExecuteFooter
           complete={phase === "complete"}
@@ -162,7 +162,7 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
           busy={isAnimating}
           executeLabel={actionLabel}
           busyLabel={busyLabel}
-          nextLabel="Route a read"
+          nextLabel="Read from a replica"
           onNext={onNext}
           completeHint="Move the client and replay to see how leader distance changes commit latency"
         />

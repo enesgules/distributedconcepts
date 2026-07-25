@@ -1,25 +1,45 @@
 # Distributed Concepts
 
-An interactive 3D learning platform that teaches distributed database concepts through guided, step-by-step simulations on a living globe.
+An interactive 3D curriculum that teaches distributed systems through guided,
+step-by-step simulations on a living globe.
 
 ![Distributed Concepts interactive 3D globe with real AWS and GCP region locations](docs/screenshot.jpg)
 
-Navigate with ← / → arrow keys, or deep-link to any step with `?step=1`–`?step=5`.
+Start from the curriculum home, jump directly to any available lesson, or use
+the ← / → arrow keys during a lesson. Shareable lessons use readable URLs such
+as `?lesson=stale-read`.
 
-## Experiences
+## Curriculum
+
+The homepage organizes the course into four chapters:
+
+1. Distribution changes the rules
+2. Copies disagree
+3. Agree through failure
+4. Distribute the workload
+
+Available interactive lessons open directly. Planned lessons remain visible so
+the course direction is clear without presenting unfinished simulations as
+complete.
+
+## Interactive lessons
 
 | # | Experience | What You Learn |
 |---|-----------|----------------|
-| 1 | **Place the Leader** | Every write commits in one region, so distance sets write latency |
-| 2 | **Add a Read Replica** | Copies bring reads closer but update asynchronously |
-| 3 | **Commit a Write** | Request → leader commit → client acknowledgment → background replication |
-| 4 | **Route a Read** | The router chooses the nearest copy and returns its local value |
-| 5 | **Expose a Stale Read** | A read can reach a replica before the latest write does |
-| 6 | **Recover the Leader** | Failure detection → leader election → reconnection → queued writes |
+| 1 | **Build a Distributed Service** | A node accepts writes from clients through network messages |
+| 2 | **Replicate the Data** | Copies bring reads closer but update asynchronously |
+| 3 | **Follow a Write** | Request → leader commit → client acknowledgment → background replication |
+| 4 | **Read from a Replica** | The router chooses the nearest copy and returns its local value |
+| 5 | **Observe a Stale Read** | A read can reach a replica before the latest write does |
+| 6 | **Recover from Failure** | Failure detection → leader election → reconnection → queued writes |
 
 The simulations pause between meaningful system actions. You decide when to
 acknowledge a commit, start replication, return a read, begin an election, and
 resume traffic.
+
+Browser Back and Forward move between the curriculum and lesson URLs without
+reloading the globe. Opening an advanced lesson prepares the minimum valid
+topology it needs while leaving skipped lessons incomplete.
 
 ## Tech Stack
 
@@ -45,7 +65,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 src/
 ├── app/
-│   ├── page.tsx                        : Single-page app (all 6 lessons)
+│   ├── page.tsx                        : Curriculum home + all 6 interactive lessons
 │   ├── layout.tsx                      : Root layout + OG metadata
 │   └── globals.css                     : Tailwind v4, animations, branding
 ├── components/
@@ -69,11 +89,11 @@ src/
 │   │   └── ...                         : Stats, timelines, comparisons
 │   └── ui/                             : Shared UI
 │       ├── LearningPathNav.tsx         : Bottom lesson navigation
-│       ├── WelcomeOverlay.tsx          : Onboarding modal
-│       └── ...                         : Sound toggle, buttons, loading
+│       ├── CurriculumHome.tsx          : Chapter map and direct lesson entry
+│       └── ...                         : Lesson nav, sound, loading
 └── lib/
     ├── regions.ts                      : 36 AWS and GCP regions
-    ├── steps.ts                        : Six-lesson curriculum registry
+    ├── steps.ts                        : Full curriculum + interactive lesson registry
     ├── geo-utils.ts                    : Lat/lon to 3D coordinate math
     ├── arc-utils.ts                    : Arc geometry calculations
     ├── sounds.ts                       : Sound effects
@@ -85,5 +105,5 @@ src/
         ├── read-flow-store.ts          : Read lesson state
         ├── consistency-race-store.ts   : Consistency lesson state
         ├── failover-store.ts           : Recovery lesson state
-        └── onboarding-store.ts         : Welcome and progress persistence
+        └── onboarding-store.ts         : Stable lesson progress persistence
 ```

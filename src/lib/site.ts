@@ -5,4 +5,4 @@ export const SITE_URL =
 export const SITE_NAME = "Distributed Concepts";
 
 export const SITE_DESCRIPTION =
-  "Learn distributed database concepts — replication, consistency, and failover — through interactive 3D visualizations on a live globe. Place regions, trace write and read paths, race replication lag, and kill a primary to watch leader election.";
+  "Learn distributed systems through interactive 3D lessons on a living globe. Build a global service, trace replication and reads, expose stale data, and recover from leader failure one decision at a time.";
