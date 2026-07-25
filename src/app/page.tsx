@@ -20,7 +20,6 @@ import ConsistencyRacePanel from "@/components/panels/ConsistencyRacePanel";
 import FailoverPanel from "@/components/panels/FailoverPanel";
 import FailoverTimeline from "@/components/panels/FailoverTimeline";
 import LearningPathNav from "@/components/ui/LearningPathNav";
-import NextStepButton from "@/components/ui/NextStepButton";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { useDatabaseStore } from "@/lib/store/database-store";
@@ -29,7 +28,7 @@ import { useReadFlowStore } from "@/lib/store/read-flow-store";
 import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { useFailoverStore } from "@/lib/store/failover-store";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import { getRegionById, type Region } from "@/lib/regions";
+import { getRegionById, regions, type Region } from "@/lib/regions";
 import { findNearestRegion } from "@/lib/simulation/latency";
 import { STEPS, LAST_STEP } from "@/lib/steps";
 import { playSelectSound, playRegionToggleSound } from "@/lib/sounds";
@@ -37,6 +36,7 @@ import { playSelectSound, playRegionToggleSound } from "@/lib/sounds";
 // Fallback client position when geolocation is unavailable (Istanbul \u2014
 // deliberately not an existing region, so routing stays interesting)
 const DEFAULT_CLIENT = { lat: 41.0, lon: 28.98 };
+const ALL_REGION_IDS = regions.map((region) => region.id);
 
 // Set the client in all three flow stores so placing it once carries
 // across the Write, Read, and Consistency steps. Skips stores already at
@@ -83,7 +83,6 @@ export default function Home() {
   const [activeStep, setActiveStep] = useState(0);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [globeReady, setGlobeReady] = useState(false);
-  const [showTitle, setShowTitle] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const isLoaded = minTimeElapsed && globeReady;
   const isLanding = activeStep === 0;
@@ -98,14 +97,6 @@ export default function Home() {
   }, []);
 
   const hasSeenWelcome = useOnboardingStore((s) => s.hasSeenWelcome);
-
-  // Hide title 5s after globe is loaded and welcome overlay is gone
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (!hasSeenWelcome) return;
-    const t = setTimeout(() => setShowTitle(false), 5000);
-    return () => clearTimeout(t);
-  }, [isLoaded, hasSeenWelcome]);
 
   // ── Mobile detection (matches Tailwind's md: breakpoint) ──────────
   useEffect(() => {
@@ -161,6 +152,14 @@ export default function Home() {
   const readRegions = useDatabaseStore((s) => s.readRegions);
   const toggleRegion = useDatabaseStore((s) => s.toggleRegion);
   const geo = useGeolocation();
+  const suggestedRegion = useMemo(() => {
+    const location = geo ?? DEFAULT_CLIENT;
+    return findNearestRegion(
+      location.lat,
+      location.lon,
+      ALL_REGION_IDS
+    )?.region;
+  }, [geo]);
 
   // ── Step-specific setup ─────────────────────────────────────────────
 
@@ -193,9 +192,11 @@ export default function Home() {
   const handleRegionClick = useCallback(
     (region: Region) => {
       if (activeStep === 0) {
-        // Landing: click a region → enter Regions step with it as primary
+        // Landing: choose a clean primary, then enter the region builder.
         playSelectSound();
-        toggleRegion(region.id);
+        const database = useDatabaseStore.getState();
+        database.reset();
+        database.setPrimary(region.id);
         setActiveStep(1);
         return;
       }
@@ -212,6 +213,25 @@ export default function Home() {
     },
     [activeStep, primaryRegion, readRegions, toggleRegion]
   );
+
+  const startWithSuggestedRegion = useCallback(() => {
+    if (!suggestedRegion) return;
+    playSelectSound();
+    const database = useDatabaseStore.getState();
+    database.reset();
+    database.setPrimary(suggestedRegion.id);
+    setActiveStep(1);
+  }, [suggestedRegion]);
+
+  const restartJourney = useCallback(() => {
+    useFailoverStore.getState().reset();
+    useDatabaseStore.getState().reset();
+    useWriteFlowStore.getState().reset();
+    useReadFlowStore.getState().reset();
+    useConsistencyRaceStore.getState().reset();
+    useOnboardingStore.getState().resetProgress();
+    setActiveStep(0);
+  }, []);
 
   // ── Globe click handler (steps 2-4) ─────────────────────────────────
   const handleGlobeClick = useCallback(
@@ -308,6 +328,19 @@ export default function Home() {
     markStepComplete,
   ]);
 
+  const isCurrentStepComplete =
+    activeStep === 0
+      ? primaryRegion !== null
+      : activeStep === 1
+        ? primaryRegion !== null && readRegions.length > 0
+        : activeStep === 2
+          ? writePhase === "complete"
+          : activeStep === 3
+            ? readPhase === "complete"
+            : activeStep === 4
+              ? racePhase === "result" || racePhase === "complete"
+              : failoverPhase === "complete";
+
   // ── Derive GlobeScene props per step ────────────────────────────────
   const globePrimaryRegion =
     activeStep === 5 ? effectivePrimary : primaryRegion;
@@ -334,7 +367,12 @@ export default function Home() {
           <ConnectionArcs />
         </>
       ),
-      left: <RegionBuilder />,
+      left: (
+        <RegionBuilder
+          suggestedRegionId={suggestedRegion?.id}
+          onNext={() => setActiveStep(2)}
+        />
+      ),
       right: <LatencyStats />,
       regionsClickable: true,
       clientPlaceable: false,
@@ -349,7 +387,7 @@ export default function Home() {
           <WriteFlowVisualization />
         </>
       ),
-      left: <WritePanel />,
+      left: <WritePanel onNext={() => setActiveStep(3)} />,
       right: isMobile ? null : <EventTimeline />,
       regionsClickable: true,
       clientPlaceable: true,
@@ -365,7 +403,7 @@ export default function Home() {
           <ReadFlowVisualization />
         </>
       ),
-      left: <ReadPanel />,
+      left: <ReadPanel onNext={() => setActiveStep(4)} />,
       right: <LatencyComparison />,
       regionsClickable: true,
       clientPlaceable: true,
@@ -394,6 +432,7 @@ export default function Home() {
         <ConsistencyRacePanel
           replicaRegionId={replicaRegionId}
           nearestIsPrimary={nearestIsPrimary}
+          onNext={() => setActiveStep(5)}
         />
       ),
       right: null,
@@ -410,7 +449,7 @@ export default function Home() {
           <FailoverVisualization />
         </>
       ),
-      left: <FailoverPanel />,
+      left: <FailoverPanel onRestart={restartJourney} />,
       right: <FailoverTimeline />,
       regionsClickable: false,
       clientPlaceable: false,
@@ -430,6 +469,7 @@ export default function Home() {
         }`}
       >
         <GlobeScene
+          isMobile={isMobile}
           onReady={handleGlobeReady}
           onRegionClick={view.regionsClickable ? handleRegionClick : undefined}
           onGlobeClick={view.clientPlaceable ? handleGlobeClick : undefined}
@@ -449,36 +489,38 @@ export default function Home() {
 
       {/* ═══ Landing UI (step 0) ═══ */}
       <AnimatePresence>
-        {isLanding && (
+        {isLanding && hasSeenWelcome && isLoaded && (
           <motion.div
             key="landing-header"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -30 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-4 pt-16 md:pt-10"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-4 pt-20 md:pt-8"
           >
-            <span className="mt-4 text-sm font-medium uppercase tracking-widest text-emerald-400">
-              Interactive Guide
-            </span>
-
-            {/* Title (fades out on its own timer too) */}
-            <AnimatePresence>
-              {showTitle && (
-                <motion.h1
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                  className="mt-3 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-center"
+            <div className="pointer-events-auto w-full max-w-md rounded-3xl bg-zinc-950/82 px-5 py-4 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7 sm:py-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
+                Your first task
+              </p>
+              <h1 className="mt-2 text-balance text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
+                Choose your primary region
+              </h1>
+              <p className="mx-auto mt-2 max-w-sm text-pretty text-xs leading-relaxed text-zinc-400 sm:text-sm">
+                Every write starts here. Pick any glowing region, or begin with
+                the closest suggested location.
+              </p>
+              {suggestedRegion && (
+                <button
+                  onClick={startWithSuggestedRegion}
+                  className="mt-4 min-h-11 rounded-full bg-emerald-400 pl-5 pr-4 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                 >
-                  <span className="text-zinc-50">Distributed </span>
-                  <span className="bg-linear-to-r from-emerald-400 to-emerald-200 bg-clip-text text-transparent">
-                    Concepts
+                  Use {suggestedRegion.city}
+                  <span className="ml-2" aria-hidden="true">
+                    →
                   </span>
-                </motion.h1>
+                </button>
               )}
-            </AnimatePresence>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -509,12 +551,12 @@ export default function Home() {
               )}
             </div>
 
-            {/* Mobile bottom bar: back + nav + next */}
-            <div className="md:hidden shrink-0 flex items-center justify-between gap-1.5 px-2 py-2 border-t border-zinc-800/50 pb-safe">
+            {/* Mobile bottom bar: back + current lesson + next */}
+            <div className="md:hidden shrink-0 grid grid-cols-[44px_1fr_44px] items-center gap-2 px-2 py-2 border-t border-zinc-800/50 pb-safe">
               {/* Back button */}
               <button
                 onClick={() => setActiveStep((s) => Math.max(s - 1, 0))}
-                className={`shrink-0 flex items-center justify-center h-8 w-8 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 cursor-pointer transition-colors hover:border-emerald-500/50 hover:text-emerald-400 ${
+                className={`flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 transition-[border-color,color,scale] duration-150 hover:border-emerald-500/50 hover:text-emerald-400 active:scale-[0.96] ${
                   activeStep <= 0 ? "opacity-30 pointer-events-none" : ""
                 }`}
                 aria-label="Previous step"
@@ -524,17 +566,33 @@ export default function Home() {
                 </svg>
               </button>
 
-              <LearningPathNav
-                activeStep={activeStep}
-                onStepChange={setActiveStep}
-                compact
-              />
+              <div className="min-w-0 text-center">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Step {activeStep + 1} of {STEPS.length}
+                </p>
+                <p className="truncate text-xs font-medium text-zinc-300">
+                  {STEPS[activeStep].title}
+                </p>
+              </div>
 
-              {/* Next / Restart button */}
+              {/* Next stays available for free exploration, then brightens on completion. */}
               <button
-                onClick={() => activeStep >= LAST_STEP ? setActiveStep(0) : setActiveStep((s) => Math.min(s + 1, LAST_STEP))}
-                className="shrink-0 flex items-center justify-center h-8 w-8 rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 cursor-pointer transition-colors hover:border-emerald-500/50 hover:text-emerald-400"
-                aria-label={activeStep >= LAST_STEP ? "Start over" : "Next step"}
+                onClick={() =>
+                  activeStep >= LAST_STEP
+                    ? restartJourney()
+                    : setActiveStep((s) => Math.min(s + 1, LAST_STEP))
+                }
+                disabled={activeStep >= LAST_STEP && !isCurrentStepComplete}
+                className={`flex h-11 w-11 items-center justify-center rounded-full border transition-[background-color,border-color,color,scale] duration-150 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30 ${
+                  isCurrentStepComplete
+                    ? "border-emerald-400 bg-emerald-400 text-zinc-950"
+                    : "border-zinc-800 bg-zinc-900/80 text-zinc-400"
+                }`}
+                aria-label={
+                  activeStep >= LAST_STEP
+                    ? "Start over"
+                    : `Next: ${STEPS[activeStep].nextAction}`
+                }
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -564,7 +622,7 @@ export default function Home() {
 
       {/* Bottom: Learning Path Nav — desktop only */}
       <div
-        className={`hidden md:flex absolute right-0 z-20 flex-col items-center gap-3 pb-6 transition-all duration-500 ease-in-out left-0 ${
+        className={`hidden md:flex absolute right-0 z-20 flex-col items-center gap-3 pb-6 transition-[left] duration-500 ease-in-out left-0 ${
           isLanding
             ? "bottom-0"
             : "bottom-0 md:left-[380px]"
@@ -574,7 +632,7 @@ export default function Home() {
           activeStep={activeStep}
           onStepChange={setActiveStep}
         />
-        <p className="text-xs text-zinc-600">{STEPS[activeStep].hint}</p>
+        <p className="text-xs text-zinc-400">{STEPS[activeStep].hint}</p>
       </div>
 
       {/* Mobile: Landing nav (step 0 only, since steps 1-5 have nav in panel) */}
@@ -599,14 +657,6 @@ export default function Home() {
           <span>Back</span>
         </button>
       )}
-
-      {/* Next step button — desktop only */}
-      <NextStepButton
-        activeStep={activeStep}
-        onNext={() => setActiveStep((s) => Math.min(s + 1, LAST_STEP))}
-        onRestart={() => setActiveStep(0)}
-        className="hidden md:flex"
-      />
 
       {/* Loading screen (shown until globe textures load) */}
       <AnimatePresence>{!isLoaded && <LoadingScreen />}</AnimatePresence>

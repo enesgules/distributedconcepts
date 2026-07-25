@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { STEPS } from "@/lib/steps";
 
@@ -10,7 +10,11 @@ interface LearningPathNavProps {
   compact?: boolean;
 }
 
-export default function LearningPathNav({ activeStep = 0, onStepChange, compact = false }: LearningPathNavProps) {
+export default function LearningPathNav({
+  activeStep = 0,
+  onStepChange,
+  compact = false,
+}: LearningPathNavProps) {
   const completedSteps = useOnboardingStore((s) => s.completedSteps);
 
   return (
@@ -27,14 +31,25 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
       <div className={`flex items-center ${compact ? "gap-0" : "gap-1"}`}>
         {STEPS.map((exp, i) => {
           const isActive = i === activeStep;
-          const isClickable = !isActive && onStepChange;
+          const isClickable = !isActive && onStepChange !== undefined;
           const isCompleted = completedSteps.includes(i) && !isActive;
+          const stateLabel = isActive
+            ? "current"
+            : isCompleted
+              ? "completed"
+              : "not completed";
 
           const content = (
-            <div className={`flex items-center gap-2 ${compact ? "px-1 py-1" : "px-2 py-2.5 md:py-1"} ${isClickable ? "cursor-pointer" : ""}`}>
+            <div
+              className={`flex min-h-10 items-center gap-2 ${
+                compact ? "justify-center px-1" : "px-2 md:px-2.5"
+              } ${isClickable ? "cursor-pointer" : ""}`}
+            >
               <div
                 className={`flex items-center justify-center rounded-full font-semibold transition-colors ${
-                  compact ? "h-6 w-6 text-[9px]" : "h-7 w-7 md:h-6 md:w-6 text-[10px]"
+                  compact
+                    ? "h-8 w-8 text-[10px]"
+                    : "h-7 w-7 text-[10px]"
                 } ${
                   isActive
                     ? "border border-emerald-500/50 bg-emerald-400/10 text-emerald-400"
@@ -43,13 +58,52 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
                       : "border border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
                 }`}
               >
-                {isCompleted ? (
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  i + 1
-                )}
+                <AnimatePresence initial={false} mode="popLayout">
+                  <motion.span
+                    key={isCompleted ? "complete" : "number"}
+                    initial={{
+                      opacity: 0,
+                      scale: 0.25,
+                      filter: "blur(4px)",
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      filter: "blur(0px)",
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.25,
+                      filter: "blur(4px)",
+                    }}
+                    transition={{
+                      type: "spring",
+                      duration: 0.3,
+                      bounce: 0,
+                    }}
+                    className="flex items-center justify-center"
+                  >
+                    {isCompleted ? (
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3 8.5l3.5 3.5L13 5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : (
+                      i + 1
+                    )}
+                  </motion.span>
+                </AnimatePresence>
               </div>
               {!compact && (
                 <div className="hidden sm:block">
@@ -62,7 +116,7 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
                   >
                     {exp.shortTitle}
                   </p>
-                  <p className="hidden text-[10px] text-zinc-700 lg:block">
+                  <p className="hidden text-[10px] text-zinc-500 lg:block">
                     {exp.tagline}
                   </p>
                 </div>
@@ -73,8 +127,16 @@ export default function LearningPathNav({ activeStep = 0, onStepChange, compact 
           return (
             <div key={exp.shortTitle} className="flex items-center">
               <button
-                onClick={isClickable ? () => onStepChange(i) : undefined}
-                className={`group ${isClickable ? "cursor-pointer" : "cursor-default"}`}
+                onClick={
+                  isClickable ? () => onStepChange?.(i) : undefined
+                }
+                aria-label={`Step ${i + 1}, ${exp.title}, ${stateLabel}`}
+                aria-current={isActive ? "step" : undefined}
+                className={`group min-h-10 rounded-xl transition-[background-color,scale] duration-150 ${
+                  isClickable
+                    ? "cursor-pointer hover:bg-white/[0.03] active:scale-[0.96]"
+                    : "cursor-default"
+                }`}
               >
                 {content}
               </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import {
@@ -9,7 +9,10 @@ import {
   CONTINENT_ORDER,
   type Region,
 } from "@/lib/regions";
-import { estimateLatencyBetweenRegions } from "@/lib/simulation/latency";
+import {
+  calculateGlobalCoverage,
+  estimateLatencyBetweenRegions,
+} from "@/lib/simulation/latency";
 import { playRegionToggleSound } from "@/lib/sounds";
 
 interface ContinentGroup {
@@ -100,20 +103,74 @@ function RegionListItem({
   );
 }
 
-export default function RegionBuilder() {
+interface RegionBuilderProps {
+  suggestedRegionId?: string;
+  onNext?: () => void;
+}
+
+export default function RegionBuilder({
+  suggestedRegionId,
+  onNext,
+}: RegionBuilderProps) {
+  const [query, setQuery] = useState("");
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
   const readRegions = useDatabaseStore((s) => s.readRegions);
   const toggleRegion = useDatabaseStore((s) => s.toggleRegion);
   const setHoveredRegion = useDatabaseStore((s) => s.setHoveredRegion);
   const reset = useDatabaseStore((s) => s.reset);
 
-  const activeProvider = primaryRegion ? getRegionById(primaryRegion)?.provider : null;
+  const activeProvider = primaryRegion
+    ? getRegionById(primaryRegion)?.provider
+    : null;
+  const suggestedRegion = suggestedRegionId
+    ? getRegionById(suggestedRegionId)
+    : null;
+  const recommendedReplica = useMemo(() => {
+    if (!primaryRegion || !activeProvider || readRegions.length > 0) return null;
+
+    let bestRegion: Region | null = null;
+    let bestCoverage = Number.POSITIVE_INFINITY;
+    for (const region of regions) {
+      if (region.provider !== activeProvider || region.id === primaryRegion)
+        continue;
+      const coverage = calculateGlobalCoverage(primaryRegion, [region.id]);
+      if (coverage < bestCoverage) {
+        bestCoverage = coverage;
+        bestRegion = region;
+      }
+    }
+    return bestRegion;
+  }, [activeProvider, primaryRegion, readRegions.length]);
+
   const continentGroups = useMemo(() => {
-    const filtered = activeProvider
-      ? regions.filter((r) => r.provider === activeProvider)
-      : regions;
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = regions.filter((region) => {
+      if (activeProvider && region.provider !== activeProvider) return false;
+      if (!primaryRegion && !normalizedQuery && region.id === suggestedRegionId)
+        return false;
+      if (
+        primaryRegion &&
+        !normalizedQuery &&
+        region.id === recommendedReplica?.id
+      )
+        return false;
+      if (!normalizedQuery) return true;
+      return [
+        region.city,
+        region.country,
+        region.code,
+        region.provider,
+        region.continent,
+      ].some((value) => value.toLowerCase().includes(normalizedQuery));
+    });
     return groupByContinent(filtered);
-  }, [activeProvider]);
+  }, [
+    activeProvider,
+    primaryRegion,
+    query,
+    recommendedReplica?.id,
+    suggestedRegionId,
+  ]);
 
   function getRole(regionId: string): "primary" | "read" | "available" {
     if (regionId === primaryRegion) return "primary";
@@ -126,17 +183,35 @@ export default function RegionBuilder() {
     return estimateLatencyBetweenRegions(primaryRegion, regionId);
   }
 
-  const step = !primaryRegion ? 1 : 2;
+  function handleToggle(region: Region) {
+    playRegionToggleSound(
+      getRole(region.id) !== "available",
+      primaryRegion !== null
+    );
+    toggleRegion(region.id);
+  }
+
+  const hasReplica = readRegions.length > 0;
+  const primaryOnlyLatency = primaryRegion
+    ? calculateGlobalCoverage(primaryRegion, [])
+    : null;
+  const currentLatency = primaryRegion
+    ? calculateGlobalCoverage(primaryRegion, readRegions)
+    : null;
+  const latencySaved =
+    primaryOnlyLatency !== null && currentLatency !== null
+      ? primaryOnlyLatency - currentLatency
+      : 0;
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md">
       {/* Header */}
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-lg font-semibold text-zinc-100">
+        <h2 className="text-balance text-lg font-semibold text-zinc-100">
           Build Your Database
         </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Select a primary region, then add read replicas
+        <p className="mt-1 text-pretty text-xs text-zinc-400">
+          Choose where writes land, then place a replica closer to your readers.
         </p>
 
         {/* Step indicator */}
@@ -144,7 +219,7 @@ export default function RegionBuilder() {
           <div className="flex items-center gap-2">
             <div
               className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-                step >= 1
+                primaryRegion
                   ? "bg-emerald-500/20 text-emerald-400"
                   : "border border-zinc-700 text-zinc-600"
               }`}
@@ -152,7 +227,7 @@ export default function RegionBuilder() {
               {primaryRegion ? "✓" : "1"}
             </div>
             <span
-              className={`text-xs ${step >= 1 ? "text-zinc-300" : "text-zinc-600"}`}
+              className={`text-xs ${primaryRegion ? "text-zinc-300" : "text-zinc-500"}`}
             >
               Primary
             </span>
@@ -163,15 +238,15 @@ export default function RegionBuilder() {
           <div className="flex items-center gap-2">
             <div
               className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-                step >= 2
+                hasReplica
                   ? "bg-emerald-500/20 text-emerald-400"
                   : "border border-zinc-700 text-zinc-600"
               }`}
             >
-              2
+              {hasReplica ? "✓" : "2"}
             </div>
             <span
-              className={`text-xs ${step >= 2 ? "text-zinc-300" : "text-zinc-600"}`}
+              className={`text-xs ${hasReplica ? "text-zinc-300" : "text-zinc-500"}`}
             >
               Read Replicas
             </span>
@@ -181,9 +256,91 @@ export default function RegionBuilder() {
 
       {/* Region list */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
+        {recommendedReplica && !query && (
+          <div className="mb-3">
+            <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">
+              Best next replica
+            </p>
+            <RegionListItem
+              region={recommendedReplica}
+              role="available"
+              latency={getLatency(recommendedReplica.id)}
+              onToggle={() => handleToggle(recommendedReplica)}
+              onHover={(hovered) =>
+                setHoveredRegion(hovered ? recommendedReplica.id : null)
+              }
+            />
+            <p className="mt-1.5 px-1 text-[10px] text-zinc-500">
+              This location gives the largest drop in global read latency.
+            </p>
+          </div>
+        )}
+
+        {activeProvider && (
+          <div className="mb-3 rounded-xl bg-zinc-900/70 px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+            <p className="text-pretty text-[11px] leading-relaxed text-zinc-400">
+              This database now uses{" "}
+              <span className="font-semibold uppercase text-zinc-200">
+                {activeProvider}
+              </span>{" "}
+              regions. Reset to choose another provider.
+            </p>
+          </div>
+        )}
+
+        <label className="relative mb-3 block">
+          <span className="sr-only">Search regions</span>
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            fill="none"
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+          >
+            <circle
+              cx="7"
+              cy="7"
+              r="4.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="m10.5 10.5 3 3"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by city or region code"
+            className="h-10 w-full rounded-xl bg-zinc-900/70 pl-9 pr-3 text-xs text-zinc-200 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none placeholder:text-zinc-600 focus:shadow-[0_0_0_2px_rgba(52,211,153,0.55)]"
+          />
+        </label>
+
+        {!primaryRegion && !query && suggestedRegion && (
+          <div className="mb-4">
+            <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">
+              Recommended near you
+            </p>
+            <RegionListItem
+              region={suggestedRegion}
+              role="available"
+              latency={null}
+              onToggle={() => handleToggle(suggestedRegion)}
+              onHover={(hovered) =>
+                setHoveredRegion(hovered ? suggestedRegion.id : null)
+              }
+            />
+          </div>
+        )}
+
         <AnimatePresence mode="popLayout">
           {continentGroups.map((group) => (
-            <div key={group.name} className="mb-4">
+            <div key={group.name} className="region-group mb-4">
               <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                 {group.name}
               </p>
@@ -194,13 +351,7 @@ export default function RegionBuilder() {
                     region={region}
                     role={getRole(region.id)}
                     latency={getLatency(region.id)}
-                    onToggle={() => {
-                      playRegionToggleSound(
-                        getRole(region.id) !== "available",
-                        primaryRegion !== null
-                      );
-                      toggleRegion(region.id);
-                    }}
+                    onToggle={() => handleToggle(region)}
                     onHover={(h) => setHoveredRegion(h ? region.id : null)}
                   />
                 ))}
@@ -208,19 +359,48 @@ export default function RegionBuilder() {
             </div>
           ))}
         </AnimatePresence>
+
+        {continentGroups.length === 0 && (
+          <p className="px-2 py-8 text-center text-xs text-zinc-500">
+            No regions match &quot;{query}&quot;.
+          </p>
+        )}
       </div>
 
       {/* Footer */}
       {(primaryRegion || readRegions.length > 0) && (
-        <div className="shrink-0 border-t border-zinc-800/50 px-5 py-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
-              {readRegions.length} replica{readRegions.length !== 1 ? "s" : ""}{" "}
-              selected
-            </span>
+        <div className="shrink-0 space-y-2 border-t border-zinc-800/50 px-5 py-3">
+          {hasReplica ? (
+            <>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs text-zinc-400">
+                  {readRegions.length} replica
+                  {readRegions.length !== 1 ? "s" : ""} selected
+                </span>
+                {latencySaved > 0 && currentLatency !== null && (
+                  <span className="font-mono text-[11px] text-emerald-400">
+                    {latencySaved}ms faster worldwide
+                  </span>
+                )}
+              </div>
+              {onNext && (
+                <button
+                  onClick={onNext}
+                  className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+                >
+                  Run a write
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-pretty text-center text-[11px] text-zinc-500">
+              Add one read replica to see how global latency changes.
+            </p>
+          )}
+          <div className="flex justify-end">
             <button
               onClick={reset}
-              className="cursor-pointer rounded-full px-3 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="min-h-10 cursor-pointer rounded-full px-3 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
             >
               Reset
             </button>

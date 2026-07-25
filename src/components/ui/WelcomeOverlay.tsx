@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { STEPS } from "@/lib/steps";
@@ -27,6 +27,15 @@ export default function WelcomeOverlay({
   // Fully derived: first visit (post-hydration) or explicitly reopened
   const visible = forceOpen || (hydrated && !hasSeenWelcome);
 
+  useEffect(() => {
+    if (!visible) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [visible, onClose]);
+
   function dismiss() {
     setWelcomeSeen();
     onClose?.();
@@ -40,70 +49,72 @@ export default function WelcomeOverlay({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.4 }}
-          className="fixed inset-0 z-40 flex items-center justify-center bg-[#0a0a0a]/90 backdrop-blur-xl"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0a0a0a] px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="welcome-title"
         >
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="mx-4 flex max-w-lg flex-col items-center text-center max-h-screen overflow-y-auto py-8"
+            className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col items-center overflow-y-auto rounded-3xl bg-zinc-950/95 px-6 py-7 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_80px_rgba(0,0,0,0.55)] sm:px-10 sm:py-10"
           >
-            {/* Title */}
-            <h2 className="mt-6 text-3xl font-bold tracking-tight sm:text-4xl">
-              <span className="text-zinc-50">Distributed </span>
-              <span className="bg-linear-to-r from-emerald-400 to-emerald-200 bg-clip-text text-transparent">
-                Concepts
-              </span>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">
+              Distributed Concepts
+            </p>
+            <h2
+              id="welcome-title"
+              className="mt-4 max-w-md text-balance text-3xl font-bold tracking-tight text-zinc-50 sm:text-4xl"
+            >
+              Build a global database and watch it fail.
             </h2>
 
-            {/* Subtitle */}
-            <p className="mt-3 max-w-sm text-base leading-relaxed text-zinc-400">
-              Learn distributed database concepts — replication, consistency,
-              and failover — through interactive 3D visualizations.
+            <p className="mt-4 max-w-sm text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base">
+              Choose regions, run a write and a read, race replication, then
+              take down the primary. The guided tour takes about five minutes.
             </p>
 
-            {/* Learning path */}
-            <div className="mt-6 md:mt-8 flex flex-col items-start gap-0 text-left max-h-[50vh] overflow-y-auto">
-              {STEPS.map((exp, i) => (
-                <motion.div
-                  key={exp.title}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.4 + i * 0.08 }}
-                  className="flex items-start gap-3"
-                >
-                  {/* Step indicator + connecting line */}
-                  <div className="flex flex-col items-center self-stretch">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-xs font-medium text-zinc-400">
-                      {i + 1}
-                    </div>
-                    {i < STEPS.length - 1 && (
-                      <div className="flex-1 w-px bg-zinc-800" />
-                    )}
-                  </div>
-
-                  {/* Text */}
-                  <div className="pb-5">
-                    <p className="text-sm font-medium text-zinc-200">
-                      {exp.title}
-                    </p>
-                    <p className="text-xs text-zinc-500">{exp.description}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* CTA */}
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.9 }}
+              transition={{ delay: 0.35 }}
               onClick={dismiss}
-              className="mt-6 cursor-pointer rounded-full bg-emerald-500 px-8 py-3 text-sm font-medium text-zinc-950 transition-colors hover:bg-emerald-400"
+              className="mt-7 min-h-11 cursor-pointer rounded-full bg-emerald-400 px-7 py-3 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 ease-out hover:bg-emerald-300 active:scale-[0.96]"
             >
-              Get Started
+              {forceOpen ? "Back to experience" : "Choose your primary region"}
             </motion.button>
+
+            <details className="group mt-5 w-full text-left">
+              <summary className="mx-auto flex min-h-10 w-fit cursor-pointer list-none items-center gap-2 rounded-full px-3 text-xs font-medium text-zinc-400 transition-colors hover:text-zinc-200">
+                See the six lessons
+                <span
+                  className="text-zinc-600 transition-transform duration-200 group-open:rotate-180"
+                  aria-hidden="true"
+                >
+                  ↓
+                </span>
+              </summary>
+              <div className="mt-3 max-h-[32vh] space-y-1 overflow-y-auto rounded-2xl bg-zinc-900/60 p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+                {STEPS.map((step, index) => (
+                  <div
+                    key={step.title}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-400">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-200">
+                        {step.title}
+                      </p>
+                      <p className="text-xs text-zinc-500">{step.tagline}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           </motion.div>
         </motion.div>
       )}

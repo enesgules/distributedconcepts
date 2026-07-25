@@ -109,7 +109,7 @@ export default function LatencyStats() {
                 >
                   {userLatency.ms}ms
                 </motion.span>
-                <span className="text-[10px] text-zinc-600">
+                <span className="text-[10px] text-zinc-500">
                   to {userLatency.city}
                 </span>
               </div>
@@ -118,7 +118,7 @@ export default function LatencyStats() {
         )}
 
         {readRegions.length === 0 && (
-          <p className="mt-2 text-[10px] text-zinc-600">
+          <p className="mt-2 text-[10px] text-zinc-400">
             Add replicas to reduce global latency
           </p>
         )}

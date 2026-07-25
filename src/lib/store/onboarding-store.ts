@@ -24,7 +24,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       resetProgress: () => set({ hasSeenWelcome: false, completedSteps: [] }),
     }),
     {
-      name: "distributed-concepts-onboarding",
+      name: "distributed-concepts-onboarding:v2",
     }
   )
 );

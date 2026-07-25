@@ -20,6 +20,32 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li,
+figcaption {
+  text-wrap: pretty;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(button, a, input, summary):focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.9);
+  outline-offset: 3px;
+}
+
+.region-group {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 420px;
+}
+
 @keyframes pulse-dot {
   0%,
   80%,

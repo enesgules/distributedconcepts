@@ -98,7 +98,8 @@ function PhaseNarration() {
   } else if (phase === "to-primary" && primary) {
     text = `Your SET command is crossing ${distanceKm?.toLocaleString()}km to reach the primary in ${primary.city}...`;
   } else if (phase === "primary-ack") {
-    text = `Primary confirmed! Client gets OK. But ${replicaStatuses.length} read replica${replicaStatuses.length !== 1 ? "s" : ""} don't have this data yet...`;
+    const verb = replicaStatuses.length === 1 ? "doesn't" : "don't";
+    text = `Primary confirmed! Client gets OK. But ${replicaStatuses.length} read replica${replicaStatuses.length !== 1 ? "s" : ""} ${verb} have this data yet...`;
   } else if (phase === "replicating" && furthestReplica) {
     text = `Data is fanning out to ${replicaStatuses.length} replica${replicaStatuses.length !== 1 ? "s" : ""}. The furthest is ${furthestReplica.city} (${furthestReplica.latencyMs}ms away)...`;
   }
@@ -118,7 +119,7 @@ function PhaseNarration() {
   );
 }
 
-export default function WritePanel() {
+export default function WritePanel({ onNext }: { onNext?: () => void }) {
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
   const readRegions = useDatabaseStore((s) => s.readRegions);
 
@@ -181,6 +182,8 @@ export default function WritePanel() {
           onReplay={handleReplay}
           disabled={!canExecute}
           busy={isAnimating}
+          nextLabel="Compare reads"
+          onNext={onNext}
           completeHint="Click a different spot on the globe to see how distance affects write latency"
         />
       }

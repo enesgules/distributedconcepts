@@ -5,6 +5,12 @@ import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
+declare global {
+  interface Navigator {
+    readonly deviceMemory?: number;
+  }
+}
+
 const GLOBE_RADIUS = 2;
 
 export { GLOBE_RADIUS };
@@ -153,7 +159,11 @@ function getSunDirection(date: Date): THREE.Vector3 {
   ).normalize();
 }
 
-export default function Globe() {
+export default function Globe({
+  allowHighResolution = true,
+}: {
+  allowHighResolution?: boolean;
+}) {
   const [dayTexture, nightTexture, specularTexture, brcTexture] = useTexture([
     "/textures/earth_day_4k.jpg",
     "/textures/earth_night_4k.jpg",
@@ -170,6 +180,13 @@ export default function Globe() {
   // the shader uniforms. Private LoadingManager so drei's useProgress (which
   // drives the loading screen) never sees these requests.
   useEffect(() => {
+    if (!allowHighResolution) return;
+    if (
+      navigator.deviceMemory !== undefined &&
+      navigator.deviceMemory <= 4
+    )
+      return;
+
     let disposed = false;
     let day8k: THREE.Texture | null = null;
     let night8k: THREE.Texture | null = null;
@@ -193,7 +210,7 @@ export default function Globe() {
       day8k?.dispose();
       night8k?.dispose();
     };
-  }, []);
+  }, [allowHighResolution]);
 
   // The sun moves ~0.25°/minute — updating once a minute is imperceptible
   // and avoids allocating a Date + Vector3 every frame

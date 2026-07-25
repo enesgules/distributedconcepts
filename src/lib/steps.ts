@@ -6,6 +6,7 @@ export interface Step {
   tagline: string;
   description: string;
   hint: string;
+  nextAction: string;
 }
 
 export const STEPS: Step[] = [
@@ -16,6 +17,7 @@ export const STEPS: Step[] = [
     description:
       "See all available regions and find which one is closest to you",
     hint: "Drag to rotate · Scroll to zoom · Hover regions to explore",
+    nextAction: "Build your database",
   },
   {
     title: "Build Your Database",
@@ -24,6 +26,7 @@ export const STEPS: Step[] = [
     description:
       "Set a primary region, add read replicas, and see latency heatmaps form across the globe",
     hint: "Click regions on the globe or panel to build your database",
+    nextAction: "Run a write",
   },
   {
     title: "Write Flow",
@@ -32,6 +35,7 @@ export const STEPS: Step[] = [
     description:
       "Execute a write and watch it travel to the primary, get confirmed, then replicate to every read region",
     hint: "Execute a write — or click the globe to move your client first",
+    nextAction: "Compare reads",
   },
   {
     title: "Read Flow",
@@ -39,6 +43,7 @@ export const STEPS: Step[] = [
     tagline: "Nearest routing",
     description: "See how reads route to the nearest replica",
     hint: "Execute a read — or click the globe to move your client first",
+    nextAction: "Race replication",
   },
   {
     title: "Eventual Consistency",
@@ -46,6 +51,7 @@ export const STEPS: Step[] = [
     tagline: "Stale reads",
     description: "Race: can you read before replication finishes?",
     hint: "Adjust the delay slider, then run the race to see eventual consistency",
+    nextAction: "Test failover",
   },
   {
     title: "Failover",
@@ -53,6 +59,7 @@ export const STEPS: Step[] = [
     tagline: "Leader election",
     description: "Kill the primary and watch leader election happen",
     hint: "Kill the primary to see automatic failover in action",
+    nextAction: "Start over",
   },
 ];
 

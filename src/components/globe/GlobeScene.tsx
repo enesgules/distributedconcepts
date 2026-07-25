@@ -76,6 +76,7 @@ function CameraController({
 }
 
 interface GlobeSceneProps {
+  isMobile?: boolean;
   children?: ReactNode;
   onRegionClick?: (region: Region) => void;
   onGlobeClick?: (lat: number, lon: number) => void;
@@ -89,6 +90,7 @@ interface GlobeSceneProps {
 }
 
 export default function GlobeScene({
+  isMobile = false,
   children,
   onRegionClick,
   onGlobeClick,
@@ -116,7 +118,7 @@ export default function GlobeScene({
   return (
     <Canvas
       camera={{ position: [4.5, 4.4, -3.1], fov: 45 }}
-      dpr={[1, 2]}
+      dpr={[1, isMobile ? 1.5 : 2]}
       gl={{ antialias: true }}
       style={{ background: "transparent" }}
     >
@@ -133,7 +135,7 @@ export default function GlobeScene({
         <Stars
           radius={300}
           depth={150}
-          count={15000}
+          count={isMobile ? 5000 : 15000}
           factor={20}
           saturation={0}
           fade
@@ -141,7 +143,7 @@ export default function GlobeScene({
         />
 
         {/* Globe */}
-        <Globe />
+        <Globe allowHighResolution={!isMobile} />
 
         {/* Invisible click target for arbitrary globe clicks + hint dismissal */}
         {(onGlobeClick || regionNavigationHint) && (

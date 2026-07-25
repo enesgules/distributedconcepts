@@ -26,8 +26,12 @@ export function FlowPanel({
       className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md"
     >
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-sm font-semibold text-zinc-200">{title}</h2>
-        <p className="mt-1 text-[11px] text-zinc-500">{description}</p>
+        <h2 className="text-balance text-sm font-semibold text-zinc-200">
+          {title}
+        </h2>
+        <p className="mt-1 text-pretty text-[11px] text-zinc-400">
+          {description}
+        </p>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {children}
@@ -138,7 +142,7 @@ export function CommandTerminal({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
-            className="flex-1 bg-transparent font-mono text-xs text-zinc-200 outline-none placeholder-zinc-600 disabled:opacity-50"
+            className="flex-1 rounded-sm bg-transparent font-mono text-xs text-zinc-200 outline-none placeholder-zinc-600 focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:opacity-50"
             spellCheck={false}
           />
         </div>
@@ -169,7 +173,7 @@ export function LatencyCounter({
       animate={{ opacity: 1 }}
       className="flex items-baseline gap-2"
     >
-      <span className="font-mono text-lg font-bold text-cyan-400">
+      <span className="font-mono text-lg font-bold tabular-nums text-cyan-400">
         {value}ms
       </span>
       <span className="text-[10px] text-zinc-500">{label}</span>
@@ -188,6 +192,8 @@ export function ExecuteFooter({
   busyLabel = "Executing...",
   replayLabel = "Replay",
   completeHint,
+  nextLabel,
+  onNext,
 }: {
   complete: boolean;
   onExecute: () => void;
@@ -198,18 +204,30 @@ export function ExecuteFooter({
   busyLabel?: string;
   replayLabel?: string;
   completeHint?: string;
+  nextLabel?: string;
+  onNext?: () => void;
 }) {
   if (complete) {
     return (
       <>
+        {nextLabel && onNext && (
+          <button
+            onClick={onNext}
+            className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+          >
+            {nextLabel}
+          </button>
+        )}
         <button
           onClick={onReplay}
-          className="w-full rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+          className="min-h-10 w-full rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-[background-color,border-color,scale] duration-150 hover:border-zinc-600 hover:bg-zinc-800 active:scale-[0.96]"
         >
           {replayLabel}
         </button>
         {completeHint && (
-          <p className="text-[10px] text-zinc-600 text-center">{completeHint}</p>
+          <p className="text-pretty text-center text-[10px] text-zinc-500">
+            {completeHint}
+          </p>
         )}
       </>
     );
@@ -218,7 +236,7 @@ export function ExecuteFooter({
     <button
       onClick={onExecute}
       disabled={disabled || busy}
-      className="w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-400/20 disabled:opacity-30 disabled:cursor-not-allowed"
+      className="min-h-10 w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition-[background-color,scale] duration-150 hover:bg-emerald-400/20 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30"
     >
       {busy ? busyLabel : executeLabel}
     </button>

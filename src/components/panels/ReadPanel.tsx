@@ -82,7 +82,7 @@ function InsightInline() {
   );
 }
 
-export default function ReadPanel() {
+export default function ReadPanel({ onNext }: { onNext?: () => void }) {
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
   const readRegions = useDatabaseStore((s) => s.readRegions);
 
@@ -155,6 +155,8 @@ export default function ReadPanel() {
           onReplay={handleReplay}
           disabled={!canExecute}
           busy={isAnimating}
+          nextLabel="Race replication"
+          onNext={onNext}
         />
       }
     >

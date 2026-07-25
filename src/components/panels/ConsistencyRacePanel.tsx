@@ -29,11 +29,13 @@ function predictionLabel(
 interface ConsistencyRacePanelProps {
   replicaRegionId: string | null;
   nearestIsPrimary: boolean;
+  onNext?: () => void;
 }
 
 export default function ConsistencyRacePanel({
   replicaRegionId,
   nearestIsPrimary,
+  onNext,
 }: ConsistencyRacePanelProps) {
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
 
@@ -114,7 +116,7 @@ export default function ConsistencyRacePanel({
       description="Can your read outrun the replication?"
       footer={
         nearestIsPrimary ? (
-          <p className="text-center text-[11px] text-zinc-600">
+          <p className="text-center text-[11px] text-zinc-400">
             Click closer to a read replica to start the race
           </p>
         ) : (
@@ -127,6 +129,8 @@ export default function ConsistencyRacePanel({
             executeLabel="Run Race"
             busyLabel="Racing..."
             replayLabel="Run Again"
+            nextLabel="Test failover"
+            onNext={onNext}
           />
         )
       }

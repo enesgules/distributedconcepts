@@ -16,7 +16,11 @@ const PHASE_NARRATION: Record<NarratedPhase, (ctx: { failedCity: string; queueCo
   recovering: () => "Read replicas reconnecting to new leader. Queued writes resuming...",
 };
 
-export default function FailoverPanel() {
+export default function FailoverPanel({
+  onRestart,
+}: {
+  onRestart?: () => void;
+}) {
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
   const readRegions = useDatabaseStore((s) => s.readRegions);
 
@@ -61,12 +65,22 @@ export default function FailoverPanel() {
             </div>
           )}
           {phase === "complete" && (
-            <button
-              onClick={reset}
-              className="w-full cursor-pointer rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
-            >
-              Reset & Try Again
-            </button>
+            <>
+              {onRestart && (
+                <button
+                  onClick={onRestart}
+                  className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+                >
+                  Start over
+                </button>
+              )}
+              <button
+                onClick={reset}
+                className="min-h-10 w-full cursor-pointer rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-[background-color,border-color,scale] duration-150 hover:border-zinc-600 hover:bg-zinc-800 active:scale-[0.96]"
+              >
+                Replay failover
+              </button>
+            </>
           )}
         </>
       }
@@ -210,8 +224,10 @@ export default function FailoverPanel() {
               className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 px-4 py-3"
             >
               <p className="text-xs leading-relaxed text-zinc-300">
-                🎉 That&apos;s the full lifecycle — regions, writes, reads,
-                consistency, and failover.
+                You built a database with one primary and {readRegions.length}{" "}
+                read replica{readRegions.length !== 1 ? "s" : ""}, ran a write
+                and a read, saw eventual consistency, and recovered from a
+                primary failure.
               </p>
               <a
                 href="https://github.com/enesgules/distributedconcepts"
