@@ -107,9 +107,9 @@ export default function CurriculumHome({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className="pointer-events-none absolute inset-0 z-20 overflow-y-auto px-3 pb-3 pt-[4.5rem] md:overflow-hidden md:px-5 md:pb-5 md:pt-20"
+      className="pointer-events-none absolute inset-0 z-20 overflow-y-auto px-3 pb-3 pt-[4.5rem] md:px-5 md:pb-5 md:pt-20 lg:overflow-hidden"
     >
-      <div className="mx-auto flex min-h-full w-full max-w-[1480px] flex-col justify-between gap-6 md:flex-row md:items-end">
+      <div className="mx-auto flex min-h-full w-full max-w-[1480px] flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <motion.section
           initial={{
             opacity: 0,
@@ -120,7 +120,7 @@ export default function CurriculumHome({
             transform: "translate3d(0, 0, 0)",
           }}
           transition={{ ...enterTransition, delay: 0.08 }}
-          className="pointer-events-auto w-full max-w-xl self-start rounded-[2rem] bg-zinc-950/94 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_90px_rgba(0,0,0,0.45)] sm:p-7 md:mt-auto md:p-8"
+          className="pointer-events-auto w-full max-w-xl self-start rounded-[2rem] bg-zinc-950/94 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_90px_rgba(0,0,0,0.45)] sm:p-7 md:p-8 lg:mt-auto"
         >
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.8)]" />
@@ -129,7 +129,7 @@ export default function CurriculumHome({
             </p>
           </div>
 
-          <h1 className="mt-4 max-w-lg text-balance text-[2.35rem] font-semibold leading-[0.98] tracking-[-0.045em] text-zinc-50 sm:text-5xl md:text-[3.6rem]">
+          <h1 className="mt-4 max-w-lg text-balance text-[2.35rem] font-semibold leading-[0.98] tracking-[-0.045em] text-zinc-50 sm:text-5xl lg:text-[3.6rem]">
             See the system make every decision.
           </h1>
 
@@ -159,7 +159,7 @@ export default function CurriculumHome({
                   block: "start",
                 })
               }
-              className="min-h-11 rounded-full bg-white/[0.055] px-4 text-sm font-medium text-zinc-300 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,scale] duration-150 hover:bg-white/[0.09] active:scale-[0.96] md:hidden"
+              className="min-h-11 rounded-full bg-white/[0.055] px-4 text-sm font-medium text-zinc-300 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,scale] duration-150 hover:bg-white/[0.09] active:scale-[0.96] lg:hidden"
             >
               Browse lessons
             </button>
@@ -184,7 +184,7 @@ export default function CurriculumHome({
             transform: "translate3d(0, 0, 0)",
           }}
           transition={{ ...enterTransition, delay: 0.16 }}
-          className="pointer-events-auto w-full scroll-mt-[4.5rem] overflow-hidden rounded-[2rem] bg-zinc-950/94 p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_24px_90px_rgba(0,0,0,0.5)] md:max-h-[calc(100vh-6.25rem)] md:max-w-[550px]"
+          className="pointer-events-auto w-full scroll-mt-[4.5rem] overflow-hidden rounded-[2rem] bg-zinc-950/94 p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_24px_90px_rgba(0,0,0,0.5)] lg:max-h-[calc(100vh-6.25rem)] lg:max-w-[550px]"
           aria-label="Curriculum"
         >
           <div className="rounded-[1.5rem] bg-white/[0.025] p-4 sm:p-5">

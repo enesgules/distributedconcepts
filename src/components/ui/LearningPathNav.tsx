@@ -25,7 +25,7 @@ export default function LearningPathNav({
       className={
         compact
           ? "rounded-xl border border-zinc-800/50 bg-zinc-950/80 px-1.5 py-1.5 backdrop-blur-md"
-          : "rounded-2xl border border-zinc-800/50 bg-zinc-950/80 px-2 py-2 md:px-5 md:py-3 backdrop-blur-md"
+          : "max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800/50 bg-zinc-950/80 px-1.5 py-2 backdrop-blur-md md:max-w-none lg:px-5 lg:py-3"
       }
     >
       <div className={`flex items-center ${compact ? "gap-0" : "gap-1"}`}>
@@ -43,7 +43,7 @@ export default function LearningPathNav({
           const content = (
             <div
               className={`flex min-h-10 items-center gap-2 ${
-                compact ? "justify-center px-1" : "px-2 md:px-2.5"
+                compact ? "justify-center px-1" : "justify-center px-1 lg:px-2.5"
               } ${isClickable ? "cursor-pointer" : ""}`}
             >
               <div
@@ -104,7 +104,7 @@ export default function LearningPathNav({
                 </AnimatePresence>
               </div>
               {!compact && (
-                <div className="hidden sm:block">
+                <div className="hidden xl:block">
                   <p
                     className={`text-xs font-medium transition-colors ${
                       isActive
@@ -130,7 +130,7 @@ export default function LearningPathNav({
                 }
                 aria-label={`Step ${i + 1}, ${exp.title}, ${stateLabel}`}
                 aria-current={isActive ? "step" : undefined}
-                className={`group min-h-10 rounded-xl transition-[background-color,scale] duration-150 ${
+                className={`group min-h-10 min-w-10 rounded-xl transition-[background-color,scale] duration-150 ${
                   isClickable
                     ? "cursor-pointer hover:bg-white/[0.03] active:scale-[0.96]"
                     : "cursor-default"
@@ -143,7 +143,7 @@ export default function LearningPathNav({
               {i < STEPS.length - 1 && (
                 <div
                   className={`h-px border-t border-dashed border-zinc-800 ${
-                    compact ? "w-1" : "w-2 md:w-4"
+                    compact ? "w-1" : "w-1 lg:w-4"
                   }`}
                 />
               )}

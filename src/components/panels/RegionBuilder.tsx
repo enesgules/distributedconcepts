@@ -204,7 +204,7 @@ export default function RegionBuilder({
       : 0;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md">
+    <div className="flex h-auto flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md md:h-full">
       {/* Header */}
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
         <h2 className="text-balance text-lg font-semibold text-zinc-100">
@@ -255,7 +255,7 @@ export default function RegionBuilder({
       </div>
 
       {/* Region list */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="px-4 py-3 md:flex-1 md:overflow-y-auto">
         {recommendedReplica && !query && (
           <div className="mb-3">
             <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">

@@ -19,7 +19,7 @@ export function FlowPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md">
+    <div className="flex h-auto flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md md:h-full">
       <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
         <h2 className="text-balance text-sm font-semibold text-zinc-200">
           {title}
@@ -28,7 +28,7 @@ export function FlowPanel({
           {description}
         </p>
       </div>
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="space-y-4 px-5 py-4 md:flex-1 md:overflow-y-auto">
         {children}
       </div>
       <div className="shrink-0 border-t border-zinc-800/50 px-5 py-4 space-y-2">
