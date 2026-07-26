@@ -38,7 +38,7 @@ export default function LoadingScreen() {
         value={progress}
         className="mt-4 w-48 gap-0 [&_[data-slot=progress-indicator]]:bg-emerald-500 [&_[data-slot=progress-track]]:h-0.5 [&_[data-slot=progress-track]]:bg-zinc-800"
       />
-      <p className="mt-3 font-mono text-xs tabular-nums text-zinc-500">
+      <p className="mt-3 font-mono text-xs tabular-nums text-[var(--text-tertiary)]">
         {Math.round(progress)}%
       </p>
     </motion.div>

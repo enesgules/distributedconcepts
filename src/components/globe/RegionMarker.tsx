@@ -15,6 +15,8 @@ interface RegionMarkerProps {
   lon: number;
   isSelected?: boolean;
   isPrimary?: boolean;
+  isDimmed?: boolean;
+  reducedMotion?: boolean;
   onClick?: (region: Region) => void;
   navigationHint?: NavigationHint;
   isHintActive?: boolean;
@@ -30,6 +32,8 @@ export default function RegionMarker({
   lon,
   isSelected = false,
   isPrimary = false,
+  isDimmed = false,
+  reducedMotion = false,
   onClick,
   navigationHint,
   isHintActive = false,
@@ -68,20 +72,38 @@ export default function RegionMarker({
 
   useFrame((state) => {
     if (!meshRef.current) return;
-    const pulse = Math.sin(state.clock.elapsedTime * 2 + lat) * 0.15 + 1;
+    const pulse = reducedMotion
+      ? 1
+      : Math.sin(state.clock.elapsedTime * 2 + lat) * 0.15 + 1;
     const isHighlighted = hovered || panelHovered;
-    const scale = isHighlighted ? 1.8 : isSelected || isPrimary ? 1.4 : pulse;
+    const scale = isHighlighted
+      ? 1.8
+      : isSelected || isPrimary
+        ? 1.4
+        : isDimmed
+          ? 0.72
+          : pulse;
     meshRef.current.scale.setScalar(scale);
 
     if (glowRef.current) {
-      const glowScale = isHighlighted ? 3.2 : pulse * 2.2;
+      const glowScale = isHighlighted ? 3.2 : isDimmed ? 1.25 : pulse * 2.2;
       glowRef.current.scale.setScalar(glowScale);
-      glowRef.current.material.opacity = isHighlighted ? 0.5 : 0.3;
+      glowRef.current.material.opacity = isHighlighted
+        ? 0.5
+        : isDimmed
+          ? 0.04
+          : 0.3;
     }
   });
 
-  const color = isPrimary ? "#facc15" : "#f0f0f0";
-  const glowColor = isPrimary ? "#facc15" : "#10b981";
+  const color = isPrimary
+    ? "#fbbf24"
+    : isSelected
+      ? "#34d399"
+      : isDimmed
+        ? "#52525b"
+        : "#f0f0f0";
+  const glowColor = isPrimary ? "#fbbf24" : "#34d399";
 
   return (
     <group position={position}>

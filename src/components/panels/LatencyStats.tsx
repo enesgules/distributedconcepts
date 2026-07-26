@@ -50,9 +50,9 @@ export default function LatencyStats() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.3 }}
-        className="rounded-2xl border border-zinc-800/50 bg-zinc-950/90 px-5 py-4 backdrop-blur-md"
+        className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-5 py-4 backdrop-blur-md"
       >
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           Global Read Latency
         </p>
 
@@ -78,7 +78,7 @@ export default function LatencyStats() {
               </motion.span>
             )}
           </div>
-          <span className="text-[10px] text-zinc-500">
+          <span className="text-[10px] text-[var(--text-tertiary)]">
             avg. read latency worldwide
           </span>
         </div>
@@ -97,9 +97,9 @@ export default function LatencyStats() {
 
         {/* User's personal latency */}
         {userLatency && (
-          <div className="mt-3 border-t border-zinc-800/50 pt-3">
+          <div className="mt-3 border-t border-[var(--line-subtle)] pt-3">
             <div className="flex items-baseline justify-between">
-              <span className="text-[10px] text-zinc-500">Your latency</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">Your latency</span>
               <div className="flex items-baseline gap-1.5">
                 <motion.span
                   key={userLatency.ms}
@@ -109,7 +109,7 @@ export default function LatencyStats() {
                 >
                   {userLatency.ms}ms
                 </motion.span>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-[var(--text-tertiary)]">
                   to {userLatency.city}
                 </span>
               </div>

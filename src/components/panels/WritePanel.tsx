@@ -70,7 +70,7 @@ function InsightInline() {
         </span>
         .
       </p>
-      <p className="mt-1.5 text-[11px] text-zinc-500">
+      <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
         Replicas are eventually consistent. The client gets{" "}
         <span className="font-mono text-emerald-400">OK</span> before all
         replicas have the data.

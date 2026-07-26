@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, type Transition } from "framer-motion";
 import {
   CURRICULUM_CHAPTERS,
@@ -82,7 +82,7 @@ function ConceptSignal({ chapter }: { chapter: CurriculumChapter }) {
               aria-hidden="true"
               data-signal-index={index}
             />
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-500">
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
               {label}
             </span>
           </div>
@@ -112,7 +112,7 @@ function CurriculumChapterPanel({
         transform: "translate3d(0, 0, 0)",
       }}
       transition={{ type: "spring", duration: 0.24, bounce: 0 }}
-      className="mt-5"
+      className="mt-5 lg:mt-0"
     >
       <div className="flex items-start gap-3">
         <span
@@ -126,7 +126,7 @@ function CurriculumChapterPanel({
           <h3 className="text-base font-semibold text-zinc-100">
             {chapter.title}
           </h3>
-          <p className="mt-1 text-sm leading-5 text-zinc-500">
+          <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
             {chapter.question}
           </p>
         </div>
@@ -142,18 +142,18 @@ function CurriculumChapterPanel({
                 key={lesson.title}
                 className="flex min-h-[64px] items-center gap-3 rounded-2xl px-3.5 py-3"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.035] font-mono text-[9px] text-zinc-500">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface-inset)] font-mono text-[10px] text-[var(--text-tertiary)]">
                   {lessonNumber}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-zinc-300">
                     {lesson.title}
                   </p>
-                  <p className="mt-0.5 text-xs leading-4 text-zinc-500">
+                  <p className="mt-0.5 text-xs leading-5 text-[var(--text-tertiary)]">
                     {lesson.summary}
                   </p>
                 </div>
-                <span className="rounded-full bg-white/[0.045] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-zinc-500">
+                <span className="rounded-full bg-[var(--surface-interactive)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
                   Planned
                 </span>
               </div>
@@ -167,10 +167,10 @@ function CurriculumChapterPanel({
             <button
               key={lesson.stepId}
               onClick={() => onSelectLesson(stepIndex)}
-              className="group flex min-h-[68px] w-full items-center gap-3 rounded-2xl bg-white/[0.035] px-3.5 py-3 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.055)] transition-[background-color,scale] duration-150 hover:bg-white/[0.065] active:scale-[0.96]"
+              className="group flex min-h-[72px] w-full items-center gap-3 rounded-2xl bg-[var(--surface-inset)] px-3.5 py-3 text-left shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,box-shadow,scale] duration-150 hover:bg-[var(--surface-hover)] hover:shadow-[inset_0_0_0_1px_var(--line-strong)] active:scale-[0.98]"
             >
               <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[9px] shadow-[0_0_0_1px_currentColor]"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[10px] shadow-[0_0_0_1px_currentColor]"
                 style={{
                   color: chapter.accent,
                   backgroundColor: `${chapter.accent}12`,
@@ -182,7 +182,7 @@ function CurriculumChapterPanel({
                 <span className="block text-sm font-medium text-zinc-200 transition-colors duration-150 group-hover:text-white">
                   {lesson.title}
                 </span>
-                <span className="mt-0.5 block text-xs leading-4 text-zinc-500">
+                <span className="mt-0.5 block text-xs leading-5 text-[var(--text-tertiary)]">
                   {lesson.summary}
                 </span>
               </span>
@@ -208,6 +208,9 @@ export default function CurriculumHome({
   onStart,
 }: CurriculumHomeProps) {
   const curriculumRef = useRef<HTMLElement>(null);
+  const [tabOrientation, setTabOrientation] = useState<"horizontal" | "vertical">(
+    "horizontal"
+  );
   const completedStepIds = useOnboardingStore(
     (state) => state.completedStepIds
   );
@@ -216,6 +219,17 @@ export default function CurriculumHome({
     CURRICULUM_CHAPTERS.find(
       (chapter) => chapter.id === activeChapterId
     ) ?? CURRICULUM_CHAPTERS[0];
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateOrientation = () => {
+      setTabOrientation(mediaQuery.matches ? "vertical" : "horizontal");
+    };
+
+    updateOrientation();
+    mediaQuery.addEventListener("change", updateOrientation);
+    return () => mediaQuery.removeEventListener("change", updateOrientation);
+  }, []);
 
   return (
     <motion.main
@@ -236,7 +250,7 @@ export default function CurriculumHome({
             transform: "translate3d(0, 0, 0)",
           }}
           transition={{ ...enterTransition, delay: 0.08 }}
-          className="pointer-events-auto w-full max-w-xl self-start rounded-[2rem] bg-zinc-950/94 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_24px_90px_rgba(0,0,0,0.45)] sm:p-7 md:p-8 lg:mt-auto"
+          className="pointer-events-auto w-full max-w-xl self-start rounded-[2rem] bg-[var(--surface-panel)] p-5 shadow-[0_0_0_1px_var(--line-subtle),0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-7 md:p-8 lg:mt-auto"
         >
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.8)]" />
@@ -279,7 +293,7 @@ export default function CurriculumHome({
             >
               Browse lessons
             </button>
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
               {lessonCounts.interactive} interactive · {lessonCounts.planned} planned
             </p>
           </div>
@@ -300,26 +314,27 @@ export default function CurriculumHome({
             transform: "translate3d(0, 0, 0)",
           }}
           transition={{ ...enterTransition, delay: 0.16 }}
-          className="pointer-events-auto w-full scroll-mt-[4.5rem] overflow-hidden rounded-[2rem] bg-zinc-950/94 p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.09),0_24px_90px_rgba(0,0,0,0.5)] lg:max-h-[calc(100vh-6.25rem)] lg:max-w-[550px]"
+          className="pointer-events-auto w-full scroll-mt-[4.5rem] overflow-hidden rounded-[2rem] bg-[var(--surface-panel)] p-2 shadow-[0_0_0_1px_var(--line-subtle),0_24px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl lg:max-h-[calc(100vh-6.25rem)] lg:max-w-[650px]"
           aria-label="Curriculum"
         >
-          <div className="rounded-[1.5rem] bg-white/[0.025] p-4 sm:p-5">
+          <div className="rounded-[1.5rem] bg-[var(--surface-inset)] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.025)] sm:p-5">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
                   Choose your entry point
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight text-zinc-100">
                   Jump to a lesson
                 </h2>
               </div>
-              <p className="hidden max-w-40 text-right text-xs leading-5 text-zinc-500 sm:block">
+              <p className="hidden max-w-40 text-right text-xs leading-5 text-[var(--text-tertiary)] sm:block">
                 Interactive lessons open now. Planned lessons show what comes
                 next.
               </p>
             </div>
 
             <Tabs
+              orientation={tabOrientation}
               value={activeChapter.id}
               onValueChange={(value) => {
                 const chapter = CURRICULUM_CHAPTERS.find(
@@ -327,11 +342,11 @@ export default function CurriculumHome({
                 );
                 if (chapter) onChapterChange(chapter.id);
               }}
-              className="gap-0"
+              className="gap-0 lg:grid lg:grid-cols-[120px_minmax(0,1fr)] lg:items-start lg:gap-5"
             >
               <TabsList
                 activateOnFocus
-                className="mt-5 grid h-auto w-full grid-cols-4 gap-1 rounded-2xl bg-black/25 p-1"
+                className="mt-5 grid h-auto w-full grid-cols-4 gap-1 rounded-2xl bg-black/25 p-1 lg:flex lg:flex-col lg:items-stretch lg:rounded-xl"
                 aria-label="Curriculum chapters"
               >
                 {CURRICULUM_CHAPTERS.map((chapter) => {
@@ -341,16 +356,16 @@ export default function CurriculumHome({
                     <TabsTrigger
                       key={chapter.id}
                       value={chapter.id}
-                      className="h-auto min-h-12 justify-start rounded-xl border-0 px-1.5 py-2 text-left transition-[background-color,box-shadow,scale] duration-150 after:hidden active:scale-[0.96] data-active:bg-white/[0.07] data-active:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.18)]"
+                      className="h-auto min-h-12 justify-start rounded-xl border-0 px-1.5 py-2 text-left after:hidden active:scale-[0.98] data-active:bg-[var(--surface-hover)] data-active:shadow-[inset_0_0_0_1px_var(--line-subtle),0_8px_20px_rgba(0,0,0,0.18)] lg:min-h-14 lg:w-full lg:px-3"
                     >
                       <span className="min-w-0">
-                        <span className="block font-mono text-[9px] text-zinc-600">
+                        <span className="block font-mono text-[10px] text-[var(--text-muted)]">
                           {chapter.number}
                         </span>
                         <span
                           className="mt-0.5 block truncate text-[11px] font-medium sm:text-xs"
                           style={{
-                            color: isActive ? chapter.accent : "#71717a",
+                            color: isActive ? chapter.accent : "#85858f",
                           }}
                         >
                           {chapter.shortTitle}

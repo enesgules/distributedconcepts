@@ -14,6 +14,7 @@ import { latLonToVector3, vector3ToLatLon } from "@/lib/geo-utils";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { GLOBE_RADIUS } from "./Globe";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { useReducedMotion } from "framer-motion";
 
 function ReadySignal({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
@@ -32,9 +33,11 @@ const _cameraGoal = new THREE.Vector3();
 function CameraController({
   controlsRef,
   cameraTarget,
+  reducedMotion,
 }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   cameraTarget?: { lat: number; lon: number } | null;
+  reducedMotion: boolean;
 }) {
   const hoveredRegionId = useDatabaseStore((s) => s.hoveredRegionId);
   const { camera } = useThree();
@@ -63,12 +66,13 @@ function CameraController({
       // Rotate toward region, keeping the user's current zoom distance
       const currentDistance = camera.position.length();
       _cameraGoal.copy(targetDir.current).multiplyScalar(currentDistance);
-      camera.position.lerp(_cameraGoal, 0.03);
+      if (reducedMotion) camera.position.copy(_cameraGoal);
+      else camera.position.lerp(_cameraGoal, 0.03);
       // Maintain distance (prevent lerp from shrinking it)
       camera.position.normalize().multiplyScalar(currentDistance);
       controls.update();
     } else {
-      controls.autoRotate = true;
+      controls.autoRotate = !reducedMotion;
     }
   });
 
@@ -87,6 +91,7 @@ interface GlobeSceneProps {
   showUserDbConnection?: boolean;
   regionNavigationHint?: NavigationHint;
   cameraTarget?: { lat: number; lon: number } | null;
+  focusSelectedRegions?: boolean;
 }
 
 export default function GlobeScene({
@@ -101,7 +106,9 @@ export default function GlobeScene({
   showUserDbConnection = false,
   regionNavigationHint,
   cameraTarget,
+  focusSelectedRegions = false,
 }: GlobeSceneProps) {
+  const reducedMotion = useReducedMotion() ?? false;
   const storePrimary = useDatabaseStore((s) => s.primaryRegion);
   // Only filter by provider when the page explicitly passes primaryRegion
   const activeProvider = primaryRegion && storePrimary ? getRegionById(storePrimary)?.provider : null;
@@ -124,7 +131,11 @@ export default function GlobeScene({
     >
       <Suspense fallback={null}>
         <ReadySignal onReady={onReady} />
-        <CameraController controlsRef={controlsRef} cameraTarget={cameraTarget} />
+        <CameraController
+          controlsRef={controlsRef}
+          cameraTarget={cameraTarget}
+          reducedMotion={reducedMotion}
+        />
 
         {/* Lighting */}
         <ambientLight intensity={0.3} />
@@ -139,7 +150,7 @@ export default function GlobeScene({
           factor={20}
           saturation={0}
           fade
-          speed={0.5}
+          speed={reducedMotion ? 0 : 0.5}
         />
 
         {/* Globe */}
@@ -164,26 +175,44 @@ export default function GlobeScene({
         )}
 
         {/* Region markers (grouped by location) */}
-        {regionGroups.map((group) => (
-          <RegionMarker
-            key={group.key}
-            regions={group.regions}
-            lat={group.lat}
-            lon={group.lon}
-            isSelected={group.regions.some((r) =>
-              selectedRegions.includes(r.id)
-            )}
-            isPrimary={group.regions.some((r) => r.id === primaryRegion)}
-            onClick={onRegionClick}
-            navigationHint={regionNavigationHint}
-            isHintActive={activeHintKey === group.key}
-            onHintClick={() => setActiveHintKey((prev) => prev === group.key ? null : group.key)}
-          />
-        ))}
+        {regionGroups.map((group) => {
+          const isSelected = group.regions.some((region) =>
+            selectedRegions.includes(region.id)
+          );
+          const isPrimary = group.regions.some(
+            (region) => region.id === primaryRegion
+          );
+
+          return (
+            <RegionMarker
+              key={group.key}
+              regions={group.regions}
+              lat={group.lat}
+              lon={group.lon}
+              isSelected={isSelected}
+              isPrimary={isPrimary}
+              isDimmed={focusSelectedRegions && !isSelected && !isPrimary}
+              reducedMotion={reducedMotion}
+              onClick={onRegionClick}
+              navigationHint={regionNavigationHint}
+              isHintActive={activeHintKey === group.key}
+              onHintClick={() =>
+                setActiveHintKey((previousKey) =>
+                  previousKey === group.key ? null : group.key
+                )
+              }
+            />
+          );
+        })}
 
         {/* User's real location */}
         {userLocation && !hideUserLocation && (
-          <UserLocationMarker lat={userLocation.lat} lon={userLocation.lon} showDbConnection={showUserDbConnection} />
+          <UserLocationMarker
+            lat={userLocation.lat}
+            lon={userLocation.lon}
+            showDbConnection={showUserDbConnection}
+            reducedMotion={reducedMotion}
+          />
         )}
 
         {/* Extensibility: experiences inject arcs, packets, etc. */}
@@ -197,7 +226,7 @@ export default function GlobeScene({
           dampingFactor={0.05}
           minDistance={3.5}
           maxDistance={14}
-          autoRotate
+          autoRotate={!reducedMotion}
           autoRotateSpeed={0.1}
           rotateSpeed={0.5}
         />

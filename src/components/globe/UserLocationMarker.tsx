@@ -22,6 +22,7 @@ interface UserLocationMarkerProps {
   lat: number;
   lon: number;
   showDbConnection?: boolean;
+  reducedMotion?: boolean;
 }
 
 function buildArc(
@@ -51,9 +52,11 @@ function buildArc(
 function PulseRing({
   index,
   normal,
+  reducedMotion,
 }: {
   index: number;
   normal: THREE.Vector3;
+  reducedMotion: boolean;
 }) {
   const ref = useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
 
@@ -68,6 +71,11 @@ function PulseRing({
 
   useFrame((state) => {
     if (!ref.current) return;
+    if (reducedMotion) {
+      ref.current.scale.setScalar(0.055 + index * 0.018);
+      ref.current.material.opacity = index === 0 ? 0.28 : 0.1;
+      return;
+    }
     // Stagger each ring by phase offset
     const phase = (state.clock.elapsedTime * 0.8 + index * (1 / RING_COUNT)) % 1;
     const scale = 0.02 + phase * 0.12;
@@ -93,6 +101,7 @@ export default function UserLocationMarker({
   lat,
   lon,
   showDbConnection = false,
+  reducedMotion = false,
 }: UserLocationMarkerProps) {
   const dotRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
@@ -142,7 +151,9 @@ export default function UserLocationMarker({
 
   useFrame((state) => {
     if (dotRef.current) {
-      const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.1 + 1;
+      const pulse = reducedMotion
+        ? 1
+        : Math.sin(state.clock.elapsedTime * 3) * 0.1 + 1;
       dotRef.current.scale.setScalar(pulse);
     }
     // Hide badge when behind the globe
@@ -168,7 +179,11 @@ export default function UserLocationMarker({
       {/* Expanding radar-ping rings */}
       {Array.from({ length: RING_COUNT }).map((_, i) => (
         <group key={i} position={position}>
-          <PulseRing index={i} normal={normal} />
+          <PulseRing
+            index={i}
+            normal={normal}
+            reducedMotion={reducedMotion}
+          />
         </group>
       ))}
 

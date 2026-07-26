@@ -168,7 +168,7 @@ export default function ConsistencyRacePanel({
       description="Control the stale window, then see which request reaches the replica first"
       footer={
         nearestIsPrimary ? (
-          <p className="text-center text-[11px] text-zinc-400">
+          <p className="text-center text-xs text-zinc-400">
             Click closer to a read replica to start the race
           </p>
         ) : (
@@ -218,7 +218,7 @@ export default function ConsistencyRacePanel({
               . Since writes and reads both go to the same region, there&apos;s
               no replication delay. You&apos;ll always read the latest value.
             </p>
-            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-2 text-xs leading-relaxed text-[var(--text-tertiary)]">
               Eventual consistency only affects reads from{" "}
               <span className="text-emerald-400">read replicas</span>, which
               need time to receive replicated data from the leader. Try clicking
@@ -229,8 +229,8 @@ export default function ConsistencyRacePanel({
 
         {/* Reading from indicator */}
         {clientLocation && (
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="text-zinc-600">Reading from</span>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-[var(--text-muted)]">Reading from</span>
             {nearestIsPrimary ? (
               <>
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -251,7 +251,7 @@ export default function ConsistencyRacePanel({
                   Replica
                 </span>
                 {readMs !== null && (
-                  <span className="font-mono text-zinc-500">~{readMs}ms</span>
+                  <span className="font-mono text-[var(--text-tertiary)]">~{readMs}ms</span>
                 )}
               </>
             )}
@@ -260,14 +260,14 @@ export default function ConsistencyRacePanel({
 
         {/* Replication context */}
         {!nearestIsPrimary && primary && replica && replicationMs !== null && (
-          <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-            <span className="text-zinc-600">Replication</span>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="text-[var(--text-muted)]">Replication</span>
             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
             <span>{primary.city}</span>
-            <span className="text-zinc-600">→</span>
+            <span className="text-[var(--text-muted)]">→</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span>{replica.city}</span>
-            <span className="font-mono text-zinc-500">
+            <span className="font-mono text-[var(--text-tertiary)]">
               ~{replicationMs}ms
             </span>
           </div>
@@ -275,13 +275,13 @@ export default function ConsistencyRacePanel({
 
         {/* Prompt or Slider */}
         {!clientLocation ? (
-          <p className="text-[11px] text-zinc-500 italic">
+          <p className="text-xs text-[var(--text-tertiary)] italic">
             Click the globe to place your client, then run the race
           </p>
         ) : !nearestIsPrimary ? (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Read Delay After Write
               </p>
               <span className="font-mono text-xs text-cyan-400">
@@ -307,7 +307,7 @@ export default function ConsistencyRacePanel({
               disabled={phase !== "idle"}
               className="py-3 [&_[data-slot=slider-range]]:bg-cyan-400 [&_[data-slot=slider-thumb]]:size-4 [&_[data-slot=slider-thumb]]:border-cyan-300 [&_[data-slot=slider-thumb]]:bg-zinc-950 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-track]]:bg-zinc-800"
             />
-            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-2 text-xs leading-relaxed text-[var(--text-tertiary)]">
               How long to wait after writing before reading from{" "}
               {replica?.city ?? "the replica"}.
               {replicationMs !== null && primary && (
@@ -352,7 +352,7 @@ export default function ConsistencyRacePanel({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-zinc-500"
+                  className="text-[var(--text-tertiary)]"
                 >
                   [waiting {readDelay}ms...]
                 </motion.div>
@@ -452,7 +452,7 @@ export default function ConsistencyRacePanel({
                 </>
               )}
             </p>
-            <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-2 text-xs leading-relaxed text-[var(--text-tertiary)]">
               {isStale
                 ? "This is eventual consistency in action. After a write, there's a brief window where replicas haven't caught up yet. Any read during that window returns stale data. Try increasing the delay to give replication enough time to finish."
                 : "The replication window is typically just tens of milliseconds. As long as your read doesn't race ahead of replication, you'll always see the latest value. Try lowering the delay to find the exact boundary where staleness kicks in."}

@@ -19,19 +19,19 @@ export function FlowPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-auto flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md md:h-full">
-      <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
-        <h2 className="text-balance text-sm font-semibold text-zinc-200">
+    <div className="flex h-full flex-col rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] backdrop-blur-xl">
+      <div className="shrink-0 border-b border-[var(--line-subtle)] px-5 pt-5 pb-4">
+        <h2 className="text-balance text-lg font-semibold tracking-tight text-zinc-100">
           {title}
         </h2>
-        <p className="mt-1 text-pretty text-[11px] text-zinc-400">
+        <p className="mt-1 text-pretty text-[13px] leading-5 text-[var(--text-secondary)]">
           {description}
         </p>
       </div>
-      <div className="space-y-4 px-5 py-4 md:flex-1 md:overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
         {children}
       </div>
-      <div className="shrink-0 border-t border-zinc-800/50 px-5 py-4 space-y-2">
+      <div className="shrink-0 border-t border-[var(--line-subtle)] px-5 py-4 space-y-2">
         {footer}
       </div>
     </div>
@@ -40,7 +40,7 @@ export function FlowPanel({
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-2">
+    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
       {children}
     </p>
   );
@@ -66,7 +66,7 @@ export function LessonSequence({
   const activeBeat = beats[boundedIndex];
 
   return (
-    <div className="rounded-xl bg-zinc-900/65 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.07)]">
+    <div className="rounded-xl bg-[var(--surface-inset)] p-3 shadow-[inset_0_0_0_1px_var(--line-subtle)]">
       <div className="flex items-center">
         {beats.map((beat, index) => {
           const isDone = complete || index < boundedIndex;
@@ -80,7 +80,7 @@ export function LessonSequence({
                     ? "bg-emerald-400 text-zinc-950"
                     : isActive
                       ? "bg-cyan-400/12 text-cyan-300 shadow-[0_0_0_1px_rgba(34,211,238,0.45)]"
-                      : "bg-zinc-800 text-zinc-600 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+                      : "bg-zinc-800 text-[var(--text-muted)] shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
                 }`}
                 aria-label={`${beat.title}, ${isDone ? "complete" : isActive ? "current" : "upcoming"}`}
               >
@@ -140,7 +140,7 @@ export function LessonSequence({
         className="mt-3"
         aria-live="polite"
       >
-        <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
           {complete
             ? "Lesson complete"
             : running
@@ -150,7 +150,7 @@ export function LessonSequence({
         <p className="mt-1 text-xs font-semibold text-zinc-200">
           {complete ? "You followed the whole path" : activeBeat.title}
         </p>
-        <p className="mt-1 text-pretty text-[11px] leading-relaxed text-zinc-400">
+        <p className="mt-1 text-pretty text-xs leading-5 text-[var(--text-secondary)]">
           {complete
             ? beats.map((beat) => beat.title.toLowerCase()).join(" → ")
             : activeBeat.detail}
@@ -175,7 +175,7 @@ export function RegionSummary() {
             <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
               Leader
             </span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-300">
+            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-300">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
               {primary.city}
             </span>
@@ -193,7 +193,7 @@ export function RegionSummary() {
                 return (
                   <span
                     key={id}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-zinc-300"
+                    className="inline-flex items-center gap-1.5 text-xs text-zinc-300"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                     {region.city}
@@ -220,7 +220,7 @@ export function ClientLocationBlock({ location }: { location: LatLon | null }) {
           </span>
         </div>
       ) : (
-        <p className="text-[11px] text-zinc-500 italic">
+        <p className="text-xs italic text-[var(--text-tertiary)]">
           Click anywhere on the globe to set your location
         </p>
       )}
@@ -243,7 +243,7 @@ export function CommandTerminal({
   return (
     <div>
       <SectionLabel>Command</SectionLabel>
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+      <div className="rounded-lg border border-[var(--line-subtle)] bg-[var(--surface-inset)] p-3">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-red-400 shrink-0">db&gt;</span>
           <input
@@ -285,7 +285,7 @@ export function LatencyCounter({
       <span className="font-mono text-lg font-bold tabular-nums text-cyan-400">
         {value}ms
       </span>
-      <span className="text-[10px] text-zinc-500">{label}</span>
+      <span className="text-xs text-[var(--text-tertiary)]">{label}</span>
     </motion.div>
   );
 }
@@ -322,19 +322,19 @@ export function ExecuteFooter({
         {nextLabel && onNext && (
           <button
             onClick={onNext}
-            className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+            className="min-h-11 w-full rounded-full bg-[var(--action)] px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-200 active:scale-[0.96]"
           >
             {nextLabel}
           </button>
         )}
         <button
           onClick={onReplay}
-          className="min-h-10 w-full rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-[background-color,border-color,scale] duration-150 hover:border-zinc-600 hover:bg-zinc-800 active:scale-[0.96]"
+          className="min-h-11 w-full rounded-full border border-[var(--line-subtle)] bg-[var(--surface-interactive)] px-4 py-2 text-xs font-medium text-zinc-300 transition-[background-color,border-color,scale] duration-150 hover:border-[var(--line-strong)] hover:bg-[var(--surface-hover)] active:scale-[0.96]"
         >
           {replayLabel}
         </button>
         {completeHint && (
-          <p className="text-pretty text-center text-[10px] text-zinc-500">
+          <p className="text-pretty text-center text-xs text-[var(--text-tertiary)]">
             {completeHint}
           </p>
         )}
@@ -345,7 +345,7 @@ export function ExecuteFooter({
     <button
       onClick={onExecute}
       disabled={disabled || busy}
-      className="min-h-10 w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-400 transition-[background-color,scale] duration-150 hover:bg-emerald-400/20 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30"
+      className="min-h-11 w-full rounded-full bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-300 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.18)] transition-[background-color,scale] duration-150 hover:bg-emerald-400/20 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30"
     >
       {busy ? busyLabel : executeLabel}
     </button>

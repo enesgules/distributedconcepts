@@ -118,7 +118,7 @@ function OpeningMessageFlow({ city }: { city: string }) {
               className="curriculum-signal-node block h-2.5 w-2.5 rounded-full bg-zinc-950 text-current shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_14px_currentColor]"
               style={{ animationDelay: `${index * 0.9}s` }}
             />
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500">
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
               {label}
             </span>
           </div>
@@ -668,7 +668,7 @@ export default function Home() {
         className={`absolute inset-0 transition-transform duration-300 ease-[cubic-bezier(0.77,0,0.175,1)] ${
           isHome || isLanding
             ? "translate-x-0"
-            : "-translate-y-[20vh] md:translate-y-0 md:translate-x-[190px]"
+            : "-translate-y-[28vh] md:translate-y-0 md:translate-x-[205px]"
         }`}
       >
         <GlobeScene
@@ -681,6 +681,7 @@ export default function Home() {
           showUserDbConnection={view.showUserDbConnection}
           hideUserLocation={view.hideUserLocation}
           cameraTarget={isHome || isLanding ? undefined : cameraTarget}
+          focusSelectedRegions={!isHome && !isLanding && activeStep >= 2}
         >
           {view.viz}
         </GlobeScene>
@@ -723,7 +724,7 @@ export default function Home() {
             transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
             className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-4 pt-20 md:pt-8"
           >
-            <div className="pointer-events-auto w-full max-w-md rounded-3xl bg-zinc-950/82 px-5 py-4 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7 sm:py-5">
+            <div className="pointer-events-auto w-full max-w-md rounded-3xl bg-[var(--surface-panel)] px-5 py-4 text-center shadow-[0_0_0_1px_var(--line-subtle),0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:px-7 sm:py-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-400">
                 {placedPrimary ? "Node placed" : `Lesson 1 of ${STEPS.length}`}
               </p>
@@ -780,10 +781,11 @@ export default function Home() {
             animate="visible"
             exit="exit"
             transition={panelTransition}
-            className="z-20 fixed top-[50vh] bottom-0 left-0 right-0 flex flex-col rounded-t-2xl border-t border-zinc-800/50 bg-zinc-950/95 backdrop-blur-md md:absolute md:top-0 md:bottom-0 md:left-0 md:right-auto md:w-[380px] md:rounded-none md:border-0 md:bg-transparent md:backdrop-blur-none md:p-4"
+            className="z-20 fixed top-[38dvh] bottom-0 left-0 right-0 flex flex-col rounded-t-3xl border-t border-[var(--line-subtle)] bg-[var(--surface-panel-strong)] shadow-[0_-18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl md:absolute md:top-0 md:bottom-0 md:left-0 md:right-auto md:w-[410px] md:rounded-none md:border-0 md:bg-transparent md:shadow-none md:backdrop-blur-none md:p-4"
           >
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/20 md:hidden" aria-hidden="true" />
             {/* Panel content — scrollable on mobile */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-0 md:h-full min-h-0">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2 md:h-full md:p-0">
               {view.left}
 
               {/* Mobile-only: right panel content stacked below left panel */}
@@ -793,7 +795,7 @@ export default function Home() {
             </div>
 
             {/* Mobile bottom bar: back + current lesson + next */}
-            <div className="md:hidden shrink-0 grid grid-cols-[44px_1fr_44px] items-center gap-2 px-2 py-2 border-t border-zinc-800/50 pb-safe">
+            <div className="grid shrink-0 grid-cols-[44px_1fr_44px] items-center gap-2 border-t border-[var(--line-subtle)] bg-[var(--surface-panel-strong)] px-2 py-2 pb-safe md:hidden">
               {/* Back button */}
               <button
                 onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
@@ -808,7 +810,7 @@ export default function Home() {
               </button>
 
               <div className="min-w-0 text-center">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
                   Step {activeStep + 1} of {STEPS.length}
                 </p>
                 <p className="truncate text-xs font-medium text-zinc-300">
@@ -867,7 +869,7 @@ export default function Home() {
           className={`hidden md:flex absolute right-0 z-20 flex-col items-center gap-3 pb-6 transition-[left] duration-500 ease-in-out left-0 ${
           isLanding
             ? "bottom-0"
-            : "bottom-0 md:left-[380px]"
+            : "bottom-0 md:left-[410px]"
         }`}
         >
           <LearningPathNav
@@ -892,7 +894,7 @@ export default function Home() {
       {!isHome && !isLanding && activeStep > 0 && (
         <button
           onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
-          className="hidden md:flex fixed left-[396px] top-1/2 z-30 -translate-y-1/2 cursor-pointer items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/80 px-4 py-2.5 text-sm text-zinc-400 backdrop-blur-sm transition-colors hover:border-emerald-500/50 hover:text-emerald-400"
+          className="fixed left-[426px] top-1/2 z-30 hidden -translate-y-1/2 cursor-pointer items-center gap-2 rounded-full border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-4 py-2.5 text-sm text-zinc-400 backdrop-blur-sm transition-[border-color,color] duration-150 hover:border-emerald-500/50 hover:text-emerald-400 md:flex"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
             <path d="M10 3l-5 5 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

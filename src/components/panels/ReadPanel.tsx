@@ -70,7 +70,7 @@ function InsightInline() {
             </span>
             . The leader is already the closest region to you.
           </p>
-          <p className="mt-1.5 text-[11px] text-zinc-500">
+          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
             Move the client closer to a read replica to see the
             routing advantage.
           </p>
@@ -92,7 +92,7 @@ function InsightInline() {
             </span>{" "}
             and be {(primaryLatencyMs / nearestLatencyMs).toFixed(1)}x slower.
           </p>
-          <p className="mt-1.5 text-[11px] text-zinc-500">
+          <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
             Reads are routed to the nearest replica automatically, giving
             low-latency access from anywhere.
           </p>
@@ -214,10 +214,10 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
           <SectionLabel>Nearest Region</SectionLabel>
           <div className="flex items-center gap-2">
             <span className="text-emerald-400 text-xs">→</span>
-            <span className="text-[11px] text-zinc-300">
+            <span className="text-xs text-zinc-300">
               {nearest.region.city}
             </span>
-            <span className="font-mono text-[11px] text-emerald-400">
+            <span className="font-mono text-xs text-emerald-400">
               ~{nearest.latencyMs}ms
             </span>
           </div>

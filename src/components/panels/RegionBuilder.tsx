@@ -53,7 +53,7 @@ function RegionListItem({
           ? "border-amber-500/30 bg-amber-500/5 aria-pressed:bg-amber-500/5"
           : role === "read"
             ? "border-emerald-500/30 bg-emerald-500/5 aria-pressed:bg-emerald-500/5"
-            : "border-zinc-800/50 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-800/40"
+            : "border-[var(--line-subtle)] bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-800/40"
       }`}
     >
       {/* Status indicator */}
@@ -83,7 +83,7 @@ function RegionListItem({
             {region.provider}
           </span>
         </div>
-        <span className="font-mono text-[11px] text-zinc-500">
+        <span className="font-mono text-xs text-[var(--text-tertiary)]">
           {region.code}
         </span>
       </div>
@@ -96,7 +96,7 @@ function RegionListItem({
           </span>
         )}
         {role === "read" && latency !== null && (
-          <span className="font-mono text-[11px] text-emerald-400">
+          <span className="font-mono text-xs text-emerald-400">
             {latency}ms
           </span>
         )}
@@ -206,13 +206,13 @@ export default function RegionBuilder({
       : 0;
 
   return (
-    <div className="flex h-auto flex-col rounded-2xl border border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md md:h-full">
+    <div className="flex h-full flex-col rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] backdrop-blur-xl">
       {/* Header */}
-      <div className="shrink-0 border-b border-zinc-800/50 px-5 pt-5 pb-4">
+      <div className="shrink-0 border-b border-[var(--line-subtle)] px-5 pt-5 pb-4">
         <h2 className="text-balance text-lg font-semibold text-zinc-100">
           Replicate the Data
         </h2>
-        <p className="mt-1 text-pretty text-xs text-zinc-400">
+        <p className="mt-1 text-pretty text-[13px] leading-5 text-[var(--text-secondary)]">
           Your first node accepts writes. Add a copy closer to distant readers.
         </p>
 
@@ -223,13 +223,13 @@ export default function RegionBuilder({
               className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
                 primaryRegion
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "border border-zinc-700 text-zinc-600"
+                  : "border border-zinc-700 text-[var(--text-muted)]"
               }`}
             >
               {primaryRegion ? "✓" : "1"}
             </div>
             <span
-              className={`text-xs ${primaryRegion ? "text-zinc-300" : "text-zinc-500"}`}
+              className={`text-xs ${primaryRegion ? "text-zinc-300" : "text-[var(--text-tertiary)]"}`}
             >
               Leader placed
             </span>
@@ -242,13 +242,13 @@ export default function RegionBuilder({
               className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
                 hasReplica
                   ? "bg-emerald-500/20 text-emerald-400"
-                  : "border border-zinc-700 text-zinc-600"
+                  : "border border-zinc-700 text-[var(--text-muted)]"
               }`}
             >
               {hasReplica ? "✓" : "2"}
             </div>
             <span
-              className={`text-xs ${hasReplica ? "text-zinc-300" : "text-zinc-500"}`}
+              className={`text-xs ${hasReplica ? "text-zinc-300" : "text-[var(--text-tertiary)]"}`}
             >
               Add a replica
             </span>
@@ -257,7 +257,7 @@ export default function RegionBuilder({
       </div>
 
       {/* Region list */}
-      <div className="px-4 py-3 md:flex-1 md:overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {recommendedReplica && !query && (
           <div className="mb-3">
             <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-500/80">
@@ -272,15 +272,15 @@ export default function RegionBuilder({
                 setHoveredRegion(hovered ? recommendedReplica.id : null)
               }
             />
-            <p className="mt-1.5 px-1 text-[10px] text-zinc-500">
+            <p className="mt-1.5 px-1 text-xs leading-5 text-[var(--text-tertiary)]">
               This copy gives the largest drop in average global read latency.
             </p>
           </div>
         )}
 
         {activeProvider && (
-          <div className="mb-3 rounded-xl bg-zinc-900/70 px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
-            <p className="text-pretty text-[11px] leading-relaxed text-zinc-400">
+          <div className="mb-3 rounded-xl bg-[var(--surface-inset)] px-3 py-2.5 shadow-[inset_0_0_0_1px_var(--line-subtle)]">
+            <p className="text-pretty text-xs leading-5 text-[var(--text-secondary)]">
               This database now uses{" "}
               <span className="font-semibold uppercase text-zinc-200">
                 {activeProvider}
@@ -298,7 +298,7 @@ export default function RegionBuilder({
             height="14"
             fill="none"
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
           >
             <circle
               cx="7"
@@ -319,7 +319,7 @@ export default function RegionBuilder({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by city or region code"
-            className="h-10 w-full rounded-xl bg-zinc-900/70 pl-9 pr-3 text-xs text-zinc-200 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none placeholder:text-zinc-600 focus:shadow-[0_0_0_2px_rgba(52,211,153,0.55)]"
+            className="h-11 w-full rounded-xl bg-[var(--surface-inset)] pl-9 pr-3 text-xs text-zinc-200 shadow-[inset_0_0_0_1px_var(--line-subtle)] outline-none placeholder:text-[var(--text-muted)]"
           />
         </label>
 
@@ -343,7 +343,7 @@ export default function RegionBuilder({
         <AnimatePresence mode="popLayout">
           {continentGroups.map((group) => (
             <div key={group.name} className="region-group mb-4">
-              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
                 {group.name}
               </p>
               <div className="flex flex-col gap-1.5">
@@ -363,7 +363,7 @@ export default function RegionBuilder({
         </AnimatePresence>
 
         {continentGroups.length === 0 && (
-          <p className="px-2 py-8 text-center text-xs text-zinc-500">
+          <p className="px-2 py-8 text-center text-xs text-[var(--text-tertiary)]">
             No regions match &quot;{query}&quot;.
           </p>
         )}
@@ -371,7 +371,7 @@ export default function RegionBuilder({
 
       {/* Footer */}
       {(primaryRegion || readRegions.length > 0) && (
-        <div className="shrink-0 space-y-2 border-t border-zinc-800/50 px-5 py-3">
+        <div className="shrink-0 space-y-2 border-t border-[var(--line-subtle)] px-5 py-3">
           {hasReplica ? (
             <>
               <div className="flex items-baseline justify-between gap-3">
@@ -380,7 +380,7 @@ export default function RegionBuilder({
                   {readRegions.length !== 1 ? "s" : ""} selected
                 </span>
                 {latencySaved > 0 && currentLatency !== null && (
-                  <span className="font-mono text-[11px] text-emerald-400">
+                  <span className="font-mono text-xs text-emerald-400">
                     {latencySaved}ms faster worldwide
                   </span>
                 )}
@@ -388,21 +388,21 @@ export default function RegionBuilder({
               {onNext && (
                 <button
                   onClick={onNext}
-                  className="min-h-10 w-full rounded-full bg-emerald-400 px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
+                  className="min-h-11 w-full rounded-full bg-[var(--action)] px-4 py-2 text-xs font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-200 active:scale-[0.96]"
                 >
                   Commit a write
                 </button>
               )}
             </>
           ) : (
-            <p className="text-pretty text-center text-[11px] text-zinc-500">
+            <p className="text-pretty text-center text-xs leading-5 text-[var(--text-tertiary)]">
               Add one read replica. The heatmap shows where reads become faster.
             </p>
           )}
           <div className="flex justify-end">
             <button
               onClick={reset}
-              className="min-h-10 cursor-pointer rounded-full px-3 py-1 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+              className="min-h-10 cursor-pointer rounded-full px-3 py-1 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-zinc-800 hover:text-zinc-300"
             >
               Reset
             </button>

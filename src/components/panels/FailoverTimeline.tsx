@@ -44,23 +44,23 @@ export default function FailoverTimeline() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-h-[400px] overflow-y-auto rounded-2xl border border-zinc-800/50 bg-zinc-950/90 px-5 py-4 backdrop-blur-md"
+      className="max-h-[400px] overflow-y-auto rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-5 py-4 backdrop-blur-md"
     >
       {/* Live status */}
       <div className="mb-3 flex gap-4">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Writes
           </p>
-          <p className={`text-[11px] font-semibold ${writeStatus.color}`}>
+          <p className={`text-xs font-semibold ${writeStatus.color}`}>
             {writeStatus.label}
           </p>
         </div>
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-wider text-zinc-600">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Reads
           </p>
-          <p className={`text-[11px] font-semibold ${readStatus.color}`}>
+          <p className={`text-xs font-semibold ${readStatus.color}`}>
             {readStatus.label}
           </p>
         </div>
@@ -68,7 +68,7 @@ export default function FailoverTimeline() {
 
       <div className="mb-3 h-px bg-zinc-800/50" />
 
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
         Failover Timeline
       </p>
 

@@ -6,6 +6,7 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { GLOBE_RADIUS } from "./Globe";
+import { useReducedMotion } from "framer-motion";
 
 interface ClientMarkerProps {
   lat: number;
@@ -16,6 +17,7 @@ interface ClientMarkerProps {
 const _camDir = new THREE.Vector3();
 
 export default function ClientMarker({ lat, lon }: ClientMarkerProps) {
+  const reducedMotion = useReducedMotion() ?? false;
   const ringRef =
     useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
   const glowRef = useRef<THREE.Mesh>(null);
@@ -42,13 +44,13 @@ export default function ClientMarker({ lat, lon }: ClientMarkerProps) {
 
     // Pulsing glow
     if (glowRef.current) {
-      const pulse = 1 + Math.sin(t * 3) * 0.15;
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(t * 3) * 0.15;
       glowRef.current.scale.setScalar(pulse);
     }
 
     // Expanding ring
     if (ringRef.current) {
-      const cycle = (t * 0.8) % 1;
+      const cycle = reducedMotion ? 0.2 : (t * 0.8) % 1;
       const scale = 1 + cycle * 3;
       ringRef.current.scale.set(scale, scale, 1);
       ringRef.current.material.opacity = 0.4 * (1 - cycle);

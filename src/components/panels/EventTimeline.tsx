@@ -7,7 +7,7 @@ import TimelineEvents, { type TimelineStyle } from "./TimelineEvents";
 const typeStyles: Record<WriteFlowEvent["type"], TimelineStyle> = {
   send: { icon: "→", color: "text-cyan-400" },
   ack: { icon: "✓", color: "text-emerald-400" },
-  replicate: { icon: "→", color: "text-zinc-500" },
+  replicate: { icon: "→", color: "text-[var(--text-tertiary)]" },
   arrive: { icon: "✓", color: "text-emerald-400" },
 };
 
@@ -22,9 +22,9 @@ export default function EventTimeline() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border border-zinc-800/50 bg-zinc-950/90 px-5 py-4 backdrop-blur-md max-h-[320px] overflow-y-auto"
+      className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-5 py-4 backdrop-blur-md max-h-[320px] overflow-y-auto"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
         Event Timeline
       </p>
 

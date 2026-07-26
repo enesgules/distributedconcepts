@@ -36,9 +36,9 @@ export default function LatencyComparison() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="rounded-2xl border border-zinc-800/50 bg-zinc-950/90 px-5 py-4 backdrop-blur-md"
+      className="rounded-2xl border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-5 py-4 backdrop-blur-md"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 mb-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
         Latency Comparison
       </p>
 
@@ -51,7 +51,7 @@ export default function LatencyComparison() {
               <p className="text-xs font-medium text-zinc-200">
                 Nearest replica
               </p>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-[var(--text-tertiary)]">
                 {nearestRegion?.city ?? nearestRegionId}
               </p>
             </div>
@@ -67,10 +67,10 @@ export default function LatencyComparison() {
       {/* Leader */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-600 text-sm">○</span>
+            <span className="text-[var(--text-muted)] text-sm">○</span>
             <div>
               <p className="text-xs font-medium text-zinc-400">Leader</p>
-              <p className="text-[10px] text-zinc-600">
+              <p className="text-[10px] text-[var(--text-muted)]">
                 {primary?.city ?? primaryRegion}
               </p>
             </div>
@@ -86,7 +86,7 @@ export default function LatencyComparison() {
             <div className="h-px bg-zinc-800/50" />
             <div className="flex items-center gap-2">
               <span className="text-emerald-400 text-xs">⚡</span>
-              <p className="text-[11px] text-emerald-400 font-medium">
+              <p className="text-xs text-emerald-400 font-medium">
                 {savingsPercent}% faster (saved {savedMs}ms)
               </p>
             </div>

@@ -17,7 +17,7 @@ export default function CurriculumButton() {
               window.dispatchEvent(new Event(OPEN_CURRICULUM_EVENT))
             }
             aria-label="Open curriculum"
-            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-zinc-950/90 text-zinc-500 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,color,scale] duration-150 hover:bg-zinc-900 hover:text-zinc-200 active:scale-[0.96] md:h-10 md:w-10"
+            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[var(--surface-panel)] text-[var(--text-tertiary)] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,color,scale] duration-150 hover:bg-zinc-900 hover:text-zinc-200 active:scale-[0.96] md:h-10 md:w-10"
           >
             <svg
               width="15"

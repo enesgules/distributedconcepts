@@ -24,8 +24,8 @@ export default function LearningPathNav({
       transition={{ duration: 0.5, delay: 0.8 }}
       className={
         compact
-          ? "rounded-xl border border-zinc-800/50 bg-zinc-950/80 px-1.5 py-1.5 backdrop-blur-md"
-          : "max-w-[calc(100vw-1rem)] rounded-2xl border border-zinc-800/50 bg-zinc-950/80 px-1.5 py-2 backdrop-blur-md md:max-w-none lg:px-5 lg:py-3"
+          ? "rounded-xl border border-[var(--line-subtle)] bg-zinc-950/80 px-1.5 py-1.5 backdrop-blur-md"
+          : "max-w-[calc(100vw-1rem)] rounded-2xl border border-[var(--line-subtle)] bg-zinc-950/80 px-1.5 py-2 backdrop-blur-md md:max-w-none lg:px-5 lg:py-3"
       }
     >
       <div className={`flex items-center ${compact ? "gap-0" : "gap-1"}`}>
@@ -56,7 +56,7 @@ export default function LearningPathNav({
                     ? "border border-emerald-500/50 bg-emerald-400/10 text-emerald-400"
                     : isCompleted
                       ? "border border-emerald-500/30 text-emerald-500/80 hover:border-emerald-500/50 hover:text-emerald-400"
-                      : "border border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
+                      : "border border-zinc-700 text-[var(--text-tertiary)] hover:border-zinc-600 hover:text-zinc-400"
                 }`}
               >
                 <AnimatePresence initial={false} mode="popLayout">
@@ -109,12 +109,12 @@ export default function LearningPathNav({
                     className={`text-xs font-medium transition-colors ${
                       isActive
                         ? "text-zinc-200"
-                        : "text-zinc-500 group-hover:text-zinc-400"
+                        : "text-[var(--text-tertiary)] group-hover:text-zinc-400"
                     }`}
                   >
                     {exp.shortTitle}
                   </p>
-                  <p className="hidden text-[10px] text-zinc-500 lg:block">
+                  <p className="hidden text-[10px] text-[var(--text-tertiary)] lg:block">
                     {exp.tagline}
                   </p>
                 </div>

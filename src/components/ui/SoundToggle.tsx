@@ -71,7 +71,7 @@ export default function SoundToggle() {
             pressed={playing}
             onPressedChange={toggle}
             aria-label={label}
-            className="relative h-11 w-11 min-w-0 rounded-full border border-zinc-800 bg-zinc-950/80 p-0 text-zinc-500 backdrop-blur-sm transition-[border-color,color,scale] duration-150 hover:border-zinc-700 hover:bg-zinc-950/80 hover:text-zinc-300 active:scale-[0.96] aria-pressed:border-emerald-500/40 aria-pressed:bg-emerald-400/10 aria-pressed:text-emerald-300 md:h-10 md:w-10"
+            className="relative h-11 w-11 min-w-0 rounded-full border border-zinc-800 bg-zinc-950/80 p-0 text-[var(--text-tertiary)] backdrop-blur-sm transition-[border-color,color,scale] duration-150 hover:border-zinc-700 hover:bg-zinc-950/80 hover:text-zinc-300 active:scale-[0.96] aria-pressed:border-emerald-500/40 aria-pressed:bg-emerald-400/10 aria-pressed:text-emerald-300 md:h-10 md:w-10"
           >
             {playing ? (
               <svg

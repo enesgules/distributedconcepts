@@ -38,13 +38,13 @@ export default function TimelineEvents<T extends string>({
               }}
               className="flex items-start gap-3"
             >
-              <span className="w-10 shrink-0 text-right font-mono text-[11px] text-zinc-500">
+              <span className="w-10 shrink-0 text-right font-mono text-xs text-[var(--text-tertiary)]">
                 {event.time}ms
               </span>
               <span className={`shrink-0 text-sm ${style.color}`}>
                 {style.icon}
               </span>
-              <span className="text-[11px] text-zinc-400">{event.label}</span>
+              <span className="text-xs text-zinc-400">{event.label}</span>
             </motion.div>
           );
         })}

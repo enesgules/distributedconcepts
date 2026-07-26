@@ -165,7 +165,7 @@ export default function FailoverPanel({
             </button>
           )}
           {isAnimating && (
-            <div className="text-center text-xs text-zinc-500">
+            <div className="text-center text-xs text-[var(--text-tertiary)]">
               {phase === "failure"
                 ? "Breaking connections..."
                 : phase === "detecting"
@@ -222,7 +222,7 @@ export default function FailoverPanel({
                         : "bg-red-400 animate-pulse"
                   }`}
                 />
-                <span className="text-[11px] text-zinc-300">
+                <span className="text-xs text-zinc-300">
                   {currentPrimary.city}
                 </span>
                 <span
@@ -256,10 +256,10 @@ export default function FailoverPanel({
               return (
                 <div key={id} className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span className="text-[11px] text-zinc-300">
+                  <span className="text-xs text-zinc-300">
                     {region.city}
                   </span>
-                  <span className="text-[9px] text-zinc-600">Read</span>
+                  <span className="text-[9px] text-[var(--text-muted)]">Read</span>
                 </div>
               );
             })}
@@ -275,7 +275,7 @@ export default function FailoverPanel({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Downtime
               </p>
               <div className="flex items-baseline gap-2">
@@ -287,7 +287,7 @@ export default function FailoverPanel({
                 >
                   {downtimeMs}ms
                 </motion.span>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-[var(--text-tertiary)]">
                   {phase === "complete" ? "total downtime" : "downtime..."}
                 </span>
               </div>
@@ -304,7 +304,7 @@ export default function FailoverPanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.3 }}
-              className="text-[11px] italic text-zinc-400"
+              className="text-xs italic text-zinc-400"
             >
               {narration}
             </motion.p>
@@ -331,7 +331,7 @@ export default function FailoverPanel({
                 . A backup replica in {failedRegion.city} was promoted to
                 leader. The write region did not move.
               </p>
-              <p className="mt-1.5 text-[11px] text-zinc-500">
+              <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
                 The database keeps multiple copies inside the leader region for high
                 availability. During failover, read replicas continue serving
                 reads. Only writes are briefly interrupted.
@@ -347,7 +347,7 @@ export default function FailoverPanel({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.5 }}
-              className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 px-4 py-3"
+              className="rounded-xl border border-[var(--line-subtle)] bg-zinc-900/50 px-4 py-3"
             >
               <p className="text-xs leading-relaxed text-zinc-300">
                 You placed one leader and {readRegions.length}{" "}
@@ -359,7 +359,7 @@ export default function FailoverPanel({
                 href="https://github.com/enesgules/distributedconcepts"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 transition-colors hover:text-emerald-300"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 transition-colors hover:text-emerald-300"
               >
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
                   <path d="M8 .3l2.3 4.7 5.2.8-3.8 3.6.9 5.2L8 12.1l-4.6 2.5.9-5.2L.5 5.8l5.2-.8L8 .3z" />
