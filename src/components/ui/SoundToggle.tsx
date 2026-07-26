@@ -2,6 +2,12 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { SOUND_STORAGE_KEY } from "@/lib/sounds";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function SoundToggle() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -55,43 +61,55 @@ export default function SoundToggle() {
     }
   }, [playing]);
 
+  const label = playing ? "Mute background sound" : "Unmute background sound";
+
   return (
-    <button
-      onClick={toggle}
-      aria-label={playing ? "Mute background sound" : "Unmute background sound"}
-      className="relative flex h-11 w-11 md:h-10 md:w-10 cursor-pointer items-center justify-center rounded-full border border-zinc-800 bg-zinc-950/80 text-zinc-500 backdrop-blur-sm transition-[border-color,color,scale] duration-150 hover:border-zinc-700 hover:text-zinc-300 active:scale-[0.96]"
-    >
-      {playing ? (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-        </svg>
-      ) : (
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          <line x1="23" y1="9" x2="17" y2="15" />
-          <line x1="17" y1="9" x2="23" y2="15" />
-        </svg>
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Toggle
+            pressed={playing}
+            onPressedChange={toggle}
+            aria-label={label}
+            className="relative h-11 w-11 min-w-0 rounded-full border border-zinc-800 bg-zinc-950/80 p-0 text-zinc-500 backdrop-blur-sm transition-[border-color,color,scale] duration-150 hover:border-zinc-700 hover:bg-zinc-950/80 hover:text-zinc-300 active:scale-[0.96] aria-pressed:border-emerald-500/40 aria-pressed:bg-emerald-400/10 aria-pressed:text-emerald-300 md:h-10 md:w-10"
+          >
+            {playing ? (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            ) : (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+          </Toggle>
+        }
+      />
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   );
 }

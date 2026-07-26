@@ -7,8 +7,15 @@ import {
   getStepIndexById,
   type ChapterId,
   type CurriculumChapter,
+  type StepId,
 } from "@/lib/steps";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface CurriculumHomeProps {
   activeChapterId: ChapterId;
@@ -80,6 +87,115 @@ function ConceptSignal({ chapter }: { chapter: CurriculumChapter }) {
             </span>
           </div>
         ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function CurriculumChapterPanel({
+  chapter,
+  completedStepIds,
+  onSelectLesson,
+}: {
+  chapter: CurriculumChapter;
+  completedStepIds: readonly StepId[];
+  onSelectLesson: (step: number) => void;
+}) {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        transform: "translate3d(0, 10px, 0)",
+      }}
+      animate={{
+        opacity: 1,
+        transform: "translate3d(0, 0, 0)",
+      }}
+      transition={{ type: "spring", duration: 0.24, bounce: 0 }}
+      className="mt-5"
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className="mt-1.5 h-2 w-2 shrink-0 rounded-full shadow-[0_0_16px_currentColor]"
+          style={{
+            backgroundColor: chapter.accent,
+            color: chapter.accent,
+          }}
+        />
+        <div>
+          <h3 className="text-base font-semibold text-zinc-100">
+            {chapter.title}
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-zinc-500">
+            {chapter.question}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 max-h-[36vh] space-y-1.5 overflow-y-auto pr-1 md:max-h-[42vh]">
+        {chapter.lessons.map((lesson, lessonIndex) => {
+          const lessonNumber = `${Number(chapter.number)}.${lessonIndex + 1}`;
+
+          if (lesson.kind === "planned") {
+            return (
+              <div
+                key={lesson.title}
+                className="flex min-h-[64px] items-center gap-3 rounded-2xl px-3.5 py-3"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.035] font-mono text-[9px] text-zinc-500">
+                  {lessonNumber}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-zinc-300">
+                    {lesson.title}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-4 text-zinc-500">
+                    {lesson.summary}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white/[0.045] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-zinc-500">
+                  Planned
+                </span>
+              </div>
+            );
+          }
+
+          const stepIndex = getStepIndexById(lesson.stepId);
+          const isComplete = completedStepIds.includes(lesson.stepId);
+
+          return (
+            <button
+              key={lesson.stepId}
+              onClick={() => onSelectLesson(stepIndex)}
+              className="group flex min-h-[68px] w-full items-center gap-3 rounded-2xl bg-white/[0.035] px-3.5 py-3 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.055)] transition-[background-color,scale] duration-150 hover:bg-white/[0.065] active:scale-[0.96]"
+            >
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[9px] shadow-[0_0_0_1px_currentColor]"
+                style={{
+                  color: chapter.accent,
+                  backgroundColor: `${chapter.accent}12`,
+                }}
+              >
+                {isComplete ? "✓" : lessonNumber}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-zinc-200 transition-colors duration-150 group-hover:text-white">
+                  {lesson.title}
+                </span>
+                <span className="mt-0.5 block text-xs leading-4 text-zinc-500">
+                  {lesson.summary}
+                </span>
+              </span>
+              <span
+                className="text-sm opacity-35 transition-opacity duration-150 group-hover:opacity-100"
+                style={{ color: chapter.accent }}
+                aria-hidden="true"
+              >
+                →
+              </span>
+            </button>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -203,150 +319,58 @@ export default function CurriculumHome({
               </p>
             </div>
 
-            <div
-              className="mt-5 grid grid-cols-4 gap-1 rounded-2xl bg-black/25 p-1"
-              aria-label="Curriculum chapters"
-            >
-              {CURRICULUM_CHAPTERS.map((chapter) => {
-                const isActive = chapter.id === activeChapter.id;
-
-                return (
-                  <button
-                    key={chapter.id}
-                    aria-pressed={isActive}
-                    onClick={() => onChapterChange(chapter.id)}
-                    className="relative min-h-12 rounded-xl px-1.5 py-2 text-left transition-[color,scale] duration-150 active:scale-[0.96]"
-                  >
-                    {isActive ? (
-                      <motion.span
-                        layoutId="active-curriculum-chapter"
-                        className="absolute inset-0 rounded-xl bg-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.18)]"
-                        transition={{
-                          type: "spring",
-                          duration: 0.25,
-                          bounce: 0,
-                        }}
-                      />
-                    ) : null}
-                    <span className="relative block font-mono text-[9px] text-zinc-600">
-                      {chapter.number}
-                    </span>
-                    <span
-                      className="relative mt-0.5 block truncate text-[11px] font-medium sm:text-xs"
-                      style={{
-                        color: isActive ? chapter.accent : "#71717a",
-                      }}
-                    >
-                      {chapter.shortTitle}
-                    </span>
-                  </button>
+            <Tabs
+              value={activeChapter.id}
+              onValueChange={(value) => {
+                const chapter = CURRICULUM_CHAPTERS.find(
+                  (candidate) => candidate.id === value
                 );
-              })}
-            </div>
-
-            <AnimatePresence initial={false} mode="popLayout">
-              <motion.div
-                key={activeChapter.id}
-                initial={{
-                  opacity: 0,
-                  transform: "translate3d(0, 10px, 0)",
-                }}
-                animate={{
-                  opacity: 1,
-                  transform: "translate3d(0, 0, 0)",
-                }}
-                exit={{
-                  opacity: 0,
-                  transform: "translate3d(0, -8px, 0)",
-                }}
-                transition={{ type: "spring", duration: 0.24, bounce: 0 }}
-                className="mt-5"
+                if (chapter) onChapterChange(chapter.id);
+              }}
+              className="gap-0"
+            >
+              <TabsList
+                activateOnFocus
+                className="mt-5 grid h-auto w-full grid-cols-4 gap-1 rounded-2xl bg-black/25 p-1"
+                aria-label="Curriculum chapters"
               >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="mt-1.5 h-2 w-2 shrink-0 rounded-full shadow-[0_0_16px_currentColor]"
-                    style={{
-                      backgroundColor: activeChapter.accent,
-                      color: activeChapter.accent,
-                    }}
-                  />
-                  <div>
-                    <h3 className="text-base font-semibold text-zinc-100">
-                      {activeChapter.title}
-                    </h3>
-                    <p className="mt-1 text-sm leading-5 text-zinc-500">
-                      {activeChapter.question}
-                    </p>
-                  </div>
-                </div>
+                {CURRICULUM_CHAPTERS.map((chapter) => {
+                  const isActive = chapter.id === activeChapter.id;
 
-                <div className="mt-4 max-h-[36vh] space-y-1.5 overflow-y-auto pr-1 md:max-h-[42vh]">
-                  {activeChapter.lessons.map((lesson, lessonIndex) => {
-                    const lessonNumber = `${Number(activeChapter.number)}.${lessonIndex + 1}`;
-
-                    if (lesson.kind === "planned") {
-                      return (
-                        <div
-                          key={lesson.title}
-                          className="flex min-h-[64px] items-center gap-3 rounded-2xl px-3.5 py-3"
-                        >
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.035] font-mono text-[9px] text-zinc-500">
-                            {lessonNumber}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-zinc-300">
-                              {lesson.title}
-                            </p>
-                            <p className="mt-0.5 text-xs leading-4 text-zinc-500">
-                              {lesson.summary}
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-white/[0.045] px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] text-zinc-500">
-                            Planned
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    const stepIndex = getStepIndexById(lesson.stepId);
-                    const isComplete = completedStepIds.includes(lesson.stepId);
-
-                    return (
-                      <button
-                        key={lesson.stepId}
-                        onClick={() => onSelectLesson(stepIndex)}
-                        className="group flex min-h-[68px] w-full items-center gap-3 rounded-2xl bg-white/[0.035] px-3.5 py-3 text-left shadow-[0_0_0_1px_rgba(255,255,255,0.055)] transition-[background-color,scale] duration-150 hover:bg-white/[0.065] active:scale-[0.96]"
-                      >
+                  return (
+                    <TabsTrigger
+                      key={chapter.id}
+                      value={chapter.id}
+                      className="h-auto min-h-12 justify-start rounded-xl border-0 px-1.5 py-2 text-left transition-[background-color,box-shadow,scale] duration-150 after:hidden active:scale-[0.96] data-active:bg-white/[0.07] data-active:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_20px_rgba(0,0,0,0.18)]"
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-mono text-[9px] text-zinc-600">
+                          {chapter.number}
+                        </span>
                         <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[9px] shadow-[0_0_0_1px_currentColor]"
+                          className="mt-0.5 block truncate text-[11px] font-medium sm:text-xs"
                           style={{
-                            color: activeChapter.accent,
-                            backgroundColor: `${activeChapter.accent}12`,
+                            color: isActive ? chapter.accent : "#71717a",
                           }}
                         >
-                          {isComplete ? "✓" : lessonNumber}
+                          {chapter.shortTitle}
                         </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-zinc-200 transition-colors duration-150 group-hover:text-white">
-                            {lesson.title}
-                          </span>
-                          <span className="mt-0.5 block text-xs leading-4 text-zinc-500">
-                            {lesson.summary}
-                          </span>
-                        </span>
-                        <span
-                          className="text-sm opacity-35 transition-opacity duration-150 group-hover:opacity-100"
-                          style={{ color: activeChapter.accent }}
-                          aria-hidden="true"
-                        >
-                          →
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            </AnimatePresence>
+                      </span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+
+              {CURRICULUM_CHAPTERS.map((chapter) => (
+                <TabsContent key={chapter.id} value={chapter.id}>
+                  <CurriculumChapterPanel
+                    chapter={chapter}
+                    completedStepIds={completedStepIds}
+                    onSelectLesson={onSelectLesson}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         </motion.section>
       </div>

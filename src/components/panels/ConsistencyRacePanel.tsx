@@ -12,6 +12,7 @@ import {
   staleReadMarginMs,
 } from "@/lib/simulation/latency";
 import { playPacketSendSound, playReplicateSound } from "@/lib/sounds";
+import { Slider } from "@/components/ui/slider";
 import {
   FlowPanel,
   ExecuteFooter,
@@ -41,6 +42,8 @@ const CONSISTENCY_BEATS = [
       "A read that reaches the replica first returns v1. If replication wins, the same read returns v2.",
   },
 ] as const satisfies readonly LessonBeat[];
+
+const formatMilliseconds = (value: number) => `${value} milliseconds`;
 
 function predictionLabel(
   readDelay: number,
@@ -285,19 +288,24 @@ export default function ConsistencyRacePanel({
                 {readDelay}ms
               </span>
             </div>
-            <input
-              type="range"
+            <Slider
+              ariaLabel="Read delay after write"
               min={0}
               max={200}
               step={5}
-              value={readDelay}
-              onChange={(e) =>
-                useConsistencyRaceStore
-                  .getState()
-                  .setReadDelay(Number(e.target.value))
-              }
+              value={[readDelay]}
+              onValueChange={(value) => {
+                const nextDelay =
+                  typeof value === "number" ? value : value[0];
+                if (nextDelay !== undefined) {
+                  useConsistencyRaceStore
+                    .getState()
+                    .setReadDelay(nextDelay);
+                }
+              }}
+              formatValue={formatMilliseconds}
               disabled={phase !== "idle"}
-              className="w-full accent-cyan-400 disabled:opacity-40"
+              className="py-3 [&_[data-slot=slider-range]]:bg-cyan-400 [&_[data-slot=slider-thumb]]:size-4 [&_[data-slot=slider-thumb]]:border-cyan-300 [&_[data-slot=slider-thumb]]:bg-zinc-950 [&_[data-slot=slider-track]]:h-1.5 [&_[data-slot=slider-track]]:bg-zinc-800"
             />
             <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
               How long to wait after writing before reading from{" "}
