@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useProgress } from "@react-three/drei";
+import { Progress } from "@/components/ui/progress";
 
 export default function LoadingScreen() {
   const { progress } = useProgress();
@@ -32,14 +33,11 @@ export default function LoadingScreen() {
       <p className="mt-5 text-sm font-medium text-zinc-300">
         Preparing the globe
       </p>
-      <div className="mt-4 h-0.5 w-48 overflow-hidden rounded-full bg-zinc-800">
-        <div
-          className="h-full origin-left rounded-full bg-emerald-500 transition-transform duration-300 ease-out"
-          style={{
-            transform: `scaleX(${Math.max(progress, 5) / 100})`,
-          }}
-        />
-      </div>
+      <Progress
+        aria-label="Preparing the globe"
+        value={progress}
+        className="mt-4 w-48 gap-0 [&_[data-slot=progress-indicator]]:bg-emerald-500 [&_[data-slot=progress-track]]:h-0.5 [&_[data-slot=progress-track]]:bg-zinc-800"
+      />
       <p className="mt-3 font-mono text-xs tabular-nums text-zinc-500">
         {Math.round(progress)}%
       </p>

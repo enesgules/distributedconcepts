@@ -14,6 +14,7 @@ import {
   estimateLatencyBetweenRegions,
 } from "@/lib/simulation/latency";
 import { playRegionToggleSound } from "@/lib/sounds";
+import { Toggle } from "@/components/ui/toggle";
 
 interface ContinentGroup {
   name: string;
@@ -41,16 +42,17 @@ function RegionListItem({
   onHover: (hovered: boolean) => void;
 }) {
   return (
-    <motion.button
-      layout
-      onClick={onToggle}
+    <Toggle
+      render={<motion.button layout />}
+      pressed={role !== "available"}
+      onPressedChange={onToggle}
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+      className={`group h-auto w-full cursor-pointer justify-start gap-3 whitespace-normal rounded-lg border px-3 py-2.5 text-left transition-colors ${
         role === "primary"
-          ? "border-amber-500/30 bg-amber-500/5"
+          ? "border-amber-500/30 bg-amber-500/5 aria-pressed:bg-amber-500/5"
           : role === "read"
-            ? "border-emerald-500/30 bg-emerald-500/5"
+            ? "border-emerald-500/30 bg-emerald-500/5 aria-pressed:bg-emerald-500/5"
             : "border-zinc-800/50 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-800/40"
       }`}
     >
@@ -99,7 +101,7 @@ function RegionListItem({
           </span>
         )}
       </div>
-    </motion.button>
+    </Toggle>
   );
 }
 
