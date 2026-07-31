@@ -5,13 +5,13 @@ step-by-step simulations on a living globe.
 
 ![Distributed Concepts interactive 3D globe with real AWS and GCP region locations](docs/screenshot.jpg)
 
-Start from the curriculum home, jump directly to any available lesson, or use
-the ← / → arrow keys during a lesson. Shareable lessons use readable URLs such
-as `?lesson=stale-read`.
+Start from the quiet globe home, browse the full curriculum at `/lessons`, or
+jump directly to any available lesson. Shareable lessons use readable paths
+such as `/lessons/stale-read`.
 
 ## Curriculum
 
-The homepage organizes the course into four chapters:
+The curriculum view organizes the course into four chapters:
 
 1. Distribution changes the rules
 2. Copies disagree
@@ -66,6 +66,7 @@ Open [http://localhost:3000](http://localhost:3000).
 src/
 ├── app/
 │   ├── page.tsx                        : Curriculum home + all 6 interactive lessons
+│   ├── lessons/                        : Crawlable curriculum and lesson routes
 │   ├── layout.tsx                      : Root layout + OG metadata
 │   └── globals.css                     : Tailwind v4, animations, branding
 ├── components/
@@ -89,6 +90,7 @@ src/
 │   │   └── ...                         : Stats, timelines, comparisons
 │   └── ui/                             : Shared UI
 │       ├── LearningPathNav.tsx         : Bottom lesson navigation
+│       ├── HomeIntro.tsx               : Quiet first-open globe controls
 │       ├── CurriculumHome.tsx          : Chapter map and direct lesson entry
 │       └── ...                         : Lesson nav, sound, loading
 └── lib/

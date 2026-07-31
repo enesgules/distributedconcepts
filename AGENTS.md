@@ -26,15 +26,15 @@ deploy to the production Vercel project at `distributedconcepts.com`.
 
 ## Application architecture
 
-`src/app/page.tsx` owns the curriculum home, six interactive lessons,
-responsive layout, globe composition, readable lesson URLs, and lesson
-completion. The globe stays mounted while the homepage, lesson panels, and
-visualizations change.
+`src/app/page.tsx` owns the quiet home, curriculum view, six interactive
+lessons, responsive layout, globe composition, readable lesson URLs, and
+lesson completion. The globe stays mounted while the homepage, lesson panels,
+and visualizations change. Route files under `src/app/lessons` supply
+indexable metadata and static paths for the shared client experience.
 
-Lesson navigation writes `?lesson=<slug>` with the History API. Browser Back,
+Lesson navigation writes `/lessons/<slug>` with the History API. Browser Back,
 browser Forward, Escape, and the curriculum button must restore the matching
-view without reloading the globe. Keep legacy `?step=<index>` URLs readable,
-but normalize them to the lesson slug.
+view without reloading the globe.
 
 Each simulation uses three pieces:
 

@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, type Transition } from "framer-motion";
+import Link from "next/link";
 import {
   CURRICULUM_CHAPTERS,
   getStepIndexById,
+  STEPS,
   type ChapterId,
   type CurriculumChapter,
   type StepId,
@@ -164,9 +166,13 @@ function CurriculumChapterPanel({
           const isComplete = completedStepIds.includes(lesson.stepId);
 
           return (
-            <button
+            <Link
               key={lesson.stepId}
-              onClick={() => onSelectLesson(stepIndex)}
+              href={`/lessons/${STEPS[stepIndex].slug}`}
+              onClick={(event) => {
+                event.preventDefault();
+                onSelectLesson(stepIndex);
+              }}
               className="group flex min-h-[72px] w-full items-center gap-3 rounded-2xl bg-[var(--surface-inset)] px-3.5 py-3 text-left shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,box-shadow,scale] duration-150 hover:bg-[var(--surface-hover)] hover:shadow-[inset_0_0_0_1px_var(--line-strong)] active:scale-[0.98]"
             >
               <span
@@ -193,7 +199,7 @@ function CurriculumChapterPanel({
               >
                 →
               </span>
-            </button>
+            </Link>
           );
         })}
       </div>
@@ -270,8 +276,12 @@ export default function CurriculumHome({
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <button
-              onClick={onStart}
+            <Link
+              href="/lessons/distributed-service"
+              onClick={(event) => {
+                event.preventDefault();
+                onStart();
+              }}
               className="flex min-h-11 items-center gap-3 rounded-full bg-emerald-300 pl-5 pr-[18px] text-sm font-semibold text-zinc-950 shadow-[0_8px_30px_rgba(69,230,167,0.2)] transition-[background-color,scale] duration-150 hover:bg-emerald-200 active:scale-[0.96]"
             >
               Start with the first system
@@ -281,7 +291,7 @@ export default function CurriculumHome({
               >
                 →
               </span>
-            </button>
+            </Link>
             <button
               onClick={() =>
                 curriculumRef.current?.scrollIntoView({
@@ -377,7 +387,11 @@ export default function CurriculumHome({
               </TabsList>
 
               {CURRICULUM_CHAPTERS.map((chapter) => (
-                <TabsContent key={chapter.id} value={chapter.id}>
+                <TabsContent
+                  key={chapter.id}
+                  value={chapter.id}
+                  keepMounted
+                >
                   <CurriculumChapterPanel
                     chapter={chapter}
                     completedStepIds={completedStepIds}

@@ -24,7 +24,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: `${SITE_NAME} — Learn Distributed Systems in 3D`,
+  title: {
+    default: `${SITE_NAME} — Learn Distributed Systems in 3D`,
+    template: `%s | ${SITE_NAME}`,
+  },
   description: SITE_DESCRIPTION,
   keywords: [
     "distributed systems",

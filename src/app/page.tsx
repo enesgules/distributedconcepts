@@ -21,6 +21,7 @@ import FailoverPanel from "@/components/panels/FailoverPanel";
 import FailoverTimeline from "@/components/panels/FailoverTimeline";
 import LearningPathNav from "@/components/ui/LearningPathNav";
 import CurriculumHome from "@/components/ui/CurriculumHome";
+import HomeIntro from "@/components/ui/HomeIntro";
 import LoadingScreen from "@/components/ui/LoadingScreen";
 import { useOnboardingStore } from "@/lib/store/onboarding-store";
 import { useDatabaseStore } from "@/lib/store/database-store";
@@ -47,34 +48,28 @@ const ALL_REGION_IDS = regions.map((region) => region.id);
 const HOME_STEP = -1;
 
 type LocationTarget =
-  | { kind: "home" }
-  | { kind: "lesson"; step: number; legacy: boolean };
+  | { kind: "home"; curriculum: boolean }
+  | { kind: "lesson"; step: number };
 
 function readLocationTarget(): LocationTarget {
-  const params = new URLSearchParams(window.location.search);
-  const lessonIndex = getStepIndexBySlug(params.get("lesson") ?? "");
-  if (lessonIndex >= 0) {
-    return { kind: "lesson", step: lessonIndex, legacy: false };
+  const lessonPath = window.location.pathname.match(/^\/lessons\/([^/]+)\/?$/);
+  if (lessonPath) {
+    const lessonIndex = getStepIndexBySlug(lessonPath[1]);
+    if (lessonIndex >= 0) {
+      return { kind: "lesson", step: lessonIndex };
+    }
   }
 
-  const legacyStepParam = params.get("step");
-  const legacyStep =
-    legacyStepParam === null ? Number.NaN : Number(legacyStepParam);
-  if (
-    Number.isInteger(legacyStep) &&
-    legacyStep >= 0 &&
-    legacyStep <= LAST_STEP
-  ) {
-    return { kind: "lesson", step: legacyStep, legacy: true };
-  }
-
-  return { kind: "home" };
+  return {
+    kind: "home",
+    curriculum: /^\/lessons\/?$/.test(window.location.pathname),
+  };
 }
 
 function getNavigationUrl(step: number): string {
   return step === HOME_STEP
-    ? window.location.pathname
-    : `${window.location.pathname}?lesson=${STEPS[step].slug}`;
+    ? "/"
+    : `/lessons/${STEPS[step].slug}`;
 }
 
 // Set the client in all three flow stores so placing it once carries
@@ -153,8 +148,19 @@ const panelTransition = {
   ease: [0.23, 1, 0.32, 1],
 } satisfies Transition;
 
-export default function Home() {
-  const [activeStep, setActiveStep] = useState(HOME_STEP);
+interface DistributedConceptsAppProps {
+  initialStep?: number;
+  initialView?: "intro" | "curriculum";
+}
+
+export function DistributedConceptsApp({
+  initialStep = HOME_STEP,
+  initialView = "intro",
+}: DistributedConceptsAppProps) {
+  const [activeStep, setActiveStep] = useState(initialStep);
+  const [showCurriculum, setShowCurriculum] = useState(
+    initialView === "curriculum"
+  );
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -162,6 +168,7 @@ export default function Home() {
     useState<ChapterId>("foundations");
   const isLoaded = minTimeElapsed && globeReady;
   const isHome = activeStep === HOME_STEP;
+  const isIntro = isHome && !showCurriculum;
   const isLanding = activeStep === 0;
   const activeLesson =
     activeStep >= 0 ? STEPS[activeStep] : STEPS[0];
@@ -169,11 +176,22 @@ export default function Home() {
   const navigateToStep = useCallback((step: number) => {
     if (step < HOME_STEP || step > LAST_STEP) return;
     setActiveStep(step);
+    setShowCurriculum(false);
     if (step >= 0) setHomeChapterId(STEPS[step].chapterId);
 
     const url = getNavigationUrl(step);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (url !== currentUrl) window.history.pushState(null, "", url);
+  }, []);
+
+  const openCurriculum = useCallback(() => {
+    setActiveStep(HOME_STEP);
+    setShowCurriculum(true);
+
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (currentUrl !== "/lessons") {
+      window.history.pushState(null, "", "/lessons");
+    }
   }, []);
 
   const openFromCurriculum = useCallback(
@@ -214,13 +232,8 @@ export default function Home() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveStep(target.step);
       setHomeChapterId(STEPS[target.step].chapterId);
-      if (target.legacy) {
-        window.history.replaceState(
-          null,
-          "",
-          getNavigationUrl(target.step)
-        );
-      }
+    } else {
+      setShowCurriculum(target.curriculum);
     }
   }, []);
 
@@ -229,6 +242,7 @@ export default function Home() {
       const target = readLocationTarget();
       if (target.kind === "home") {
         setActiveStep(HOME_STEP);
+        setShowCurriculum(target.curriculum);
         return;
       }
 
@@ -241,16 +255,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const openCurriculum = () => navigateToStep(HOME_STEP);
     window.addEventListener(OPEN_CURRICULUM_EVENT, openCurriculum);
     return () =>
       window.removeEventListener(OPEN_CURRICULUM_EVENT, openCurriculum);
-  }, [navigateToStep]);
+  }, [openCurriculum]);
 
   // ── Keyboard navigation (← / →) ───────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && activeStep !== HOME_STEP) {
+        navigateToStep(HOME_STEP);
+        return;
+      }
+      if (e.key === "Escape" && showCurriculum) {
         navigateToStep(HOME_STEP);
         return;
       }
@@ -271,7 +288,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeStep, isHome, navigateToStep]);
+  }, [activeStep, isHome, navigateToStep, showCurriculum]);
 
   // ── Responsive Framer variants ────────────────────────────────────
   const leftPanelVariants = isMobile
@@ -692,8 +709,8 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 md:h-72 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
 
       {/* ═══ Curriculum home ═══ */}
-      <AnimatePresence>
-        {isHome && isLoaded ? (
+      <AnimatePresence initial={false}>
+        {isHome && showCurriculum ? (
           <CurriculumHome
             key="curriculum-home"
             activeChapterId={homeChapterId}
@@ -704,9 +721,20 @@ export default function Home() {
         ) : null}
       </AnimatePresence>
 
+      {/* ═══ Quiet first-open home ═══ */}
+      <AnimatePresence initial={false}>
+        {isIntro ? (
+          <HomeIntro
+            key="home-intro"
+            onBrowse={openCurriculum}
+            onStart={() => openFromCurriculum(0)}
+          />
+        ) : null}
+      </AnimatePresence>
+
       {/* ═══ Opening lesson UI (step 0) ═══ */}
       <AnimatePresence>
-        {isLanding && isLoaded && (
+        {isLanding && (
           <motion.div
             key="landing-header"
             initial={{
@@ -908,4 +936,8 @@ export default function Home() {
 
     </div>
   );
+}
+
+export default function Home() {
+  return <DistributedConceptsApp />;
 }
