@@ -6,12 +6,11 @@ import { useDatabaseStore } from "@/lib/store/database-store";
 import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { getRegionById } from "@/lib/regions";
 import {
-  estimateLatency,
-  estimateLatencyBetweenRegions,
-  estimateLatencyStable,
+  compareLatency,
+  sampleLatency,
+  sampleLatencyBetweenRegions,
   staleReadMarginMs,
 } from "@/lib/simulation/latency";
-import { playPacketSendSound, playReplicateSound } from "@/lib/sounds";
 import { Slider } from "@/components/ui/slider";
 import {
   FlowPanel,
@@ -84,12 +83,12 @@ export default function ConsistencyRacePanel({
 
   const replicationMs = useMemo(() => {
     if (!primaryRegion || !replicaRegionId) return null;
-    return estimateLatencyBetweenRegions(primaryRegion, replicaRegionId);
+    return sampleLatencyBetweenRegions(primaryRegion, replicaRegionId);
   }, [primaryRegion, replicaRegionId]);
 
   const readMs = useMemo(() => {
     if (!clientLocation || !replica) return null;
-    return estimateLatencyStable(
+    return compareLatency(
       clientLocation.lat,
       clientLocation.lon,
       replica.lat,
@@ -124,20 +123,18 @@ export default function ConsistencyRacePanel({
     )
       return;
 
-    const primaryLatency = estimateLatency(
+    const primaryLatency = sampleLatency(
       clientLocation.lat,
       clientLocation.lon,
       primary.lat,
       primary.lon
     );
-    playPacketSendSound();
     useConsistencyRaceStore
       .getState()
       .startRace(primaryLatency, replicationMs, readMs);
   }, [clientLocation, primary, readMs, replicationMs]);
 
   const handleStartRace = useCallback(() => {
-    playReplicateSound();
     useConsistencyRaceStore.getState().startReplicationRace();
   }, []);
 

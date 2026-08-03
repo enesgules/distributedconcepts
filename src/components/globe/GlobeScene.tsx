@@ -11,7 +11,6 @@ import { type NavigationHint } from "./RegionTooltip";
 import UserLocationMarker from "./UserLocationMarker";
 import { regions, groupRegionsByLocation, getRegionById, type Region } from "@/lib/regions";
 import { latLonToVector3, vector3ToLatLon } from "@/lib/geo-utils";
-import { useDatabaseStore } from "@/lib/store/database-store";
 import { GLOBE_RADIUS } from "./Globe";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { useReducedMotion } from "framer-motion";
@@ -33,13 +32,14 @@ const _cameraGoal = new THREE.Vector3();
 function CameraController({
   controlsRef,
   cameraTarget,
+  hoveredRegionId,
   reducedMotion,
 }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   cameraTarget?: { lat: number; lon: number } | null;
+  hoveredRegionId?: string | null;
   reducedMotion: boolean;
 }) {
-  const hoveredRegionId = useDatabaseStore((s) => s.hoveredRegionId);
   const { camera } = useThree();
   const targetDir = useRef<THREE.Vector3 | null>(null);
 
@@ -92,6 +92,7 @@ interface GlobeSceneProps {
   regionNavigationHint?: NavigationHint;
   cameraTarget?: { lat: number; lon: number } | null;
   focusSelectedRegions?: boolean;
+  hoveredRegionId?: string | null;
 }
 
 export default function GlobeScene({
@@ -107,11 +108,12 @@ export default function GlobeScene({
   regionNavigationHint,
   cameraTarget,
   focusSelectedRegions = false,
+  hoveredRegionId = null,
 }: GlobeSceneProps) {
   const reducedMotion = useReducedMotion() ?? false;
-  const storePrimary = useDatabaseStore((s) => s.primaryRegion);
-  // Only filter by provider when the page explicitly passes primaryRegion
-  const activeProvider = primaryRegion && storePrimary ? getRegionById(storePrimary)?.provider : null;
+  const activeProvider = primaryRegion
+    ? getRegionById(primaryRegion)?.provider
+    : null;
   const regionGroups = useMemo(() => {
     const filtered = activeProvider
       ? regions.filter((r) => r.provider === activeProvider)
@@ -134,6 +136,7 @@ export default function GlobeScene({
         <CameraController
           controlsRef={controlsRef}
           cameraTarget={cameraTarget}
+          hoveredRegionId={hoveredRegionId}
           reducedMotion={reducedMotion}
         />
 
@@ -192,6 +195,9 @@ export default function GlobeScene({
               isSelected={isSelected}
               isPrimary={isPrimary}
               isDimmed={focusSelectedRegions && !isSelected && !isPrimary}
+              panelHovered={group.regions.some(
+                (region) => region.id === hoveredRegionId
+              )}
               reducedMotion={reducedMotion}
               onClick={onRegionClick}
               navigationHint={regionNavigationHint}

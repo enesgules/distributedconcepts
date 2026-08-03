@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DistributedConceptsApp } from "@/app/page";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
-import { getStepIndexBySlug, STEPS } from "@/lib/steps";
+import { getLessonBySlug } from "@/lib/curriculum-runtime";
+import { STEPS } from "@/lib/steps";
 
 interface LessonPageProps {
   params: Promise<{ slug: string }>;
@@ -16,10 +17,8 @@ export async function generateMetadata({
   params,
 }: LessonPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const stepIndex = getStepIndexBySlug(slug);
-  if (stepIndex < 0) return {};
-
-  const lesson = STEPS[stepIndex];
+  const lesson = getLessonBySlug(slug);
+  if (!lesson) return {};
   const url = `/lessons/${lesson.slug}`;
 
   return {
@@ -42,10 +41,8 @@ export async function generateMetadata({
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { slug } = await params;
-  const stepIndex = getStepIndexBySlug(slug);
-  if (stepIndex < 0) notFound();
-
-  const lesson = STEPS[stepIndex];
+  const lesson = getLessonBySlug(slug);
+  if (!lesson) notFound();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "LearningResource",
@@ -67,7 +64,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <DistributedConceptsApp initialStep={stepIndex} />
+      <DistributedConceptsApp initialLessonId={lesson.id} />
     </>
   );
 }

@@ -23,7 +23,7 @@ import LearningPathNav from "@/components/ui/LearningPathNav";
 import CurriculumHome from "@/components/ui/CurriculumHome";
 import HomeIntro from "@/components/ui/HomeIntro";
 import LoadingScreen from "@/components/ui/LoadingScreen";
-import { useOnboardingStore } from "@/lib/store/onboarding-store";
+import { useCurriculumProgressStore } from "@/lib/store/curriculum-progress-store";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
@@ -34,43 +34,27 @@ import { getRegionById, regions, type Region } from "@/lib/regions";
 import { findNearestRegion } from "@/lib/simulation/latency";
 import {
   STEPS,
-  LAST_STEP,
-  getStepIndexBySlug,
+  getStepIndexById,
   type ChapterId,
+  type StepId,
 } from "@/lib/steps";
-import { OPEN_CURRICULUM_EVENT } from "@/lib/navigation";
+import {
+  getAdjacentLessonId,
+  getLessonById,
+  getLessonUrl,
+  getRegionInteraction,
+  isLessonComplete,
+  lessonNeedsPreparedTopology,
+  lessonPrefersReplicaClient,
+  parseCurriculumLocation,
+  OPEN_CURRICULUM_EVENT,
+} from "@/lib/curriculum-runtime";
 import { playSelectSound, playRegionToggleSound } from "@/lib/sounds";
 
 // Fallback client position when geolocation is unavailable (Istanbul \u2014
 // deliberately not an existing region, so routing stays interesting)
 const DEFAULT_CLIENT = { lat: 41.0, lon: 28.98 };
 const ALL_REGION_IDS = regions.map((region) => region.id);
-const HOME_STEP = -1;
-
-type LocationTarget =
-  | { kind: "home"; curriculum: boolean }
-  | { kind: "lesson"; step: number };
-
-function readLocationTarget(): LocationTarget {
-  const lessonPath = window.location.pathname.match(/^\/lessons\/([^/]+)\/?$/);
-  if (lessonPath) {
-    const lessonIndex = getStepIndexBySlug(lessonPath[1]);
-    if (lessonIndex >= 0) {
-      return { kind: "lesson", step: lessonIndex };
-    }
-  }
-
-  return {
-    kind: "home",
-    curriculum: /^\/lessons\/?$/.test(window.location.pathname),
-  };
-}
-
-function getNavigationUrl(step: number): string {
-  return step === HOME_STEP
-    ? "/"
-    : `/lessons/${STEPS[step].slug}`;
-}
 
 // Set the client in all three flow stores so placing it once carries
 // across the Write, Read, and Consistency steps. Skips stores already at
@@ -149,43 +133,47 @@ const panelTransition = {
 } satisfies Transition;
 
 interface DistributedConceptsAppProps {
-  initialStep?: number;
+  initialLessonId?: StepId | null;
   initialView?: "intro" | "curriculum";
 }
 
 export function DistributedConceptsApp({
-  initialStep = HOME_STEP,
+  initialLessonId = null,
   initialView = "intro",
 }: DistributedConceptsAppProps) {
-  const [activeStep, setActiveStep] = useState(initialStep);
+  const [activeLessonId, setActiveLessonId] = useState<StepId | null>(
+    initialLessonId
+  );
   const [showCurriculum, setShowCurriculum] = useState(
     initialView === "curriculum"
   );
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [globeReady, setGlobeReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hoveredRegionId, setHoveredRegionId] = useState<string | null>(null);
   const [homeChapterId, setHomeChapterId] =
     useState<ChapterId>("foundations");
   const isLoaded = minTimeElapsed && globeReady;
-  const isHome = activeStep === HOME_STEP;
+  const isHome = activeLessonId === null;
   const isIntro = isHome && !showCurriculum;
-  const isLanding = activeStep === 0;
-  const activeLesson =
-    activeStep >= 0 ? STEPS[activeStep] : STEPS[0];
+  const isLanding = activeLessonId === "distributed-service";
+  const activeLesson = activeLessonId
+    ? getLessonById(activeLessonId)
+    : STEPS[0];
+  const activeStep = activeLessonId ? getStepIndexById(activeLessonId) : -1;
 
-  const navigateToStep = useCallback((step: number) => {
-    if (step < HOME_STEP || step > LAST_STEP) return;
-    setActiveStep(step);
+  const navigateToLesson = useCallback((lessonId: StepId | null) => {
+    setActiveLessonId(lessonId);
     setShowCurriculum(false);
-    if (step >= 0) setHomeChapterId(STEPS[step].chapterId);
+    if (lessonId) setHomeChapterId(getLessonById(lessonId).chapterId);
 
-    const url = getNavigationUrl(step);
+    const url = lessonId ? getLessonUrl(lessonId) : "/";
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (url !== currentUrl) window.history.pushState(null, "", url);
   }, []);
 
   const openCurriculum = useCallback(() => {
-    setActiveStep(HOME_STEP);
+    setActiveLessonId(null);
     setShowCurriculum(true);
 
     const currentUrl = `${window.location.pathname}${window.location.search}`;
@@ -195,14 +183,14 @@ export function DistributedConceptsApp({
   }, []);
 
   const openFromCurriculum = useCallback(
-    (step: number) => {
-      if (step === 0) {
+    (lessonId: StepId) => {
+      if (lessonId === "distributed-service") {
         useDatabaseStore.getState().reset();
         resetLessonSimulations();
       }
-      navigateToStep(step);
+      navigateToLesson(lessonId);
     },
-    [navigateToStep]
+    [navigateToLesson]
   );
 
   useEffect(() => {
@@ -225,13 +213,13 @@ export function DistributedConceptsApp({
 
   // ── Shareable step URLs ───────────────────────────────────────────
   useEffect(() => {
-    const target = readLocationTarget();
+    const target = parseCurriculumLocation(window.location.pathname);
     if (target.kind === "lesson") {
       // One-time sync from the URL after hydration; a lazy initializer would
       // mismatch the server-rendered curriculum markup
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveStep(target.step);
-      setHomeChapterId(STEPS[target.step].chapterId);
+      setActiveLessonId(target.lessonId);
+      setHomeChapterId(getLessonById(target.lessonId).chapterId);
     } else {
       setShowCurriculum(target.curriculum);
     }
@@ -239,15 +227,15 @@ export function DistributedConceptsApp({
 
   useEffect(() => {
     const restoreFromHistory = () => {
-      const target = readLocationTarget();
+      const target = parseCurriculumLocation(window.location.pathname);
       if (target.kind === "home") {
-        setActiveStep(HOME_STEP);
+        setActiveLessonId(null);
         setShowCurriculum(target.curriculum);
         return;
       }
 
-      setActiveStep(target.step);
-      setHomeChapterId(STEPS[target.step].chapterId);
+      setActiveLessonId(target.lessonId);
+      setHomeChapterId(getLessonById(target.lessonId).chapterId);
     };
 
     window.addEventListener("popstate", restoreFromHistory);
@@ -263,12 +251,12 @@ export function DistributedConceptsApp({
   // ── Keyboard navigation (← / →) ───────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && activeStep !== HOME_STEP) {
-        navigateToStep(HOME_STEP);
+      if (e.key === "Escape" && activeLessonId) {
+        navigateToLesson(null);
         return;
       }
       if (e.key === "Escape" && showCurriculum) {
-        navigateToStep(HOME_STEP);
+        navigateToLesson(null);
         return;
       }
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
@@ -280,15 +268,16 @@ export function DistributedConceptsApp({
         )
       )
         return;
-      navigateToStep(
-        e.key === "ArrowRight"
-          ? Math.min(activeStep + 1, LAST_STEP)
-          : Math.max(activeStep - 1, 0)
+      if (!activeLessonId) return;
+      const adjacent = getAdjacentLessonId(
+        activeLessonId,
+        e.key === "ArrowRight" ? "next" : "previous"
       );
+      if (adjacent) navigateToLesson(adjacent);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activeStep, isHome, navigateToStep, showCurriculum]);
+  }, [activeLessonId, isHome, navigateToLesson, showCurriculum]);
 
   // ── Responsive Framer variants ────────────────────────────────────
   const leftPanelVariants = isMobile
@@ -315,45 +304,22 @@ export function DistributedConceptsApp({
     resetLessonSimulations();
   }, [primaryRegion, readRegions]);
 
-  // ── Step-specific setup ─────────────────────────────────────────────
-
-  // Direct entry must prepare a valid same-provider topology without counting
-  // that setup as learner progress.
+  // Direct entry prepares topology without awarding lesson completion.
   useEffect(() => {
-    if (activeStep < 2) return;
-    const database = useDatabaseStore.getState();
-    const primaryId = database.primaryRegion ?? "us-east-1";
-    if (!database.primaryRegion) database.setPrimary(primaryId);
+    if (!activeLessonId || !lessonNeedsPreparedTopology(activeLessonId)) return;
+    useDatabaseStore.getState().prepare();
+  }, [activeLessonId]);
 
-    const latestDatabase = useDatabaseStore.getState();
-    if (latestDatabase.readRegions.length > 0) return;
-
-    const primary = getRegionById(primaryId);
-    if (!primary) return;
-    const replica =
-      regions.find(
-        (region) =>
-          region.provider === primary.provider &&
-          region.id !== primary.id &&
-          region.continent !== primary.continent
-      ) ??
-      regions.find(
-        (region) =>
-          region.provider === primary.provider && region.id !== primary.id
-      );
-
-    if (replica) {
-      latestDatabase.addReadRegion(replica.id);
-    }
-  }, [activeStep]);
-
-  // Steps 2-4: auto-place the shared client (previous placement → geolocation
-  // → fixed fallback) so Execute/Run Race are never dead on arrival
+  // Client-based lessons inherit the last placement or use a valid fallback.
   useEffect(() => {
-    if (activeStep < 2 || activeStep > 4) return;
+    if (
+      !activeLessonId ||
+      getRegionInteraction(activeLessonId) !== "place-client"
+    )
+      return;
 
     const existing =
-      activeStep === 4
+      activeLessonId === "stale-read"
         ? useConsistencyRaceStore.getState().clientLocation ??
           useReadFlowStore.getState().clientLocation ??
           useWriteFlowStore.getState().clientLocation
@@ -363,10 +329,7 @@ export function DistributedConceptsApp({
 
     // These lessons begin with a reader near a replica so their advertised
     // routing and stale-read behavior is ready without extra globe hunting.
-    if (
-      (activeStep === 3 || activeStep === 4) &&
-      readRegions.length > 0
-    ) {
+    if (lessonPrefersReplicaClient(activeLessonId) && readRegions.length > 0) {
       const replica = getRegionById(readRegions[0]);
       if (replica) {
         setSharedClientLocation(replica.lat, replica.lon);
@@ -376,33 +339,41 @@ export function DistributedConceptsApp({
 
     const loc = existing ?? geo ?? DEFAULT_CLIENT;
     setSharedClientLocation(loc.lat, loc.lon);
-  }, [activeStep, geo, readRegions]);
+  }, [activeLessonId, geo, readRegions]);
 
   // ── Region click handler (step-dependent) ───────────────────────────
   const handleRegionClick = useCallback(
     (region: Region) => {
-      if (activeStep === 0) {
-        playSelectSound();
-        const database = useDatabaseStore.getState();
-        database.reset();
-        database.setPrimary(region.id);
-        useOnboardingStore
-          .getState()
-          .markStepComplete("distributed-service");
-        return;
-      }
-      if (activeStep === 1) {
-        playRegionToggleSound(
-          region.id === primaryRegion || readRegions.includes(region.id),
-          primaryRegion !== null
-        );
-        toggleRegion(region.id);
-      } else if (activeStep >= 2 && activeStep <= 4) {
-        playSelectSound();
-        setSharedClientLocation(region.lat, region.lon);
+      if (!activeLessonId) return;
+      const interaction = getRegionInteraction(activeLessonId);
+      switch (interaction) {
+        case "choose-primary": {
+          playSelectSound();
+          const database = useDatabaseStore.getState();
+          database.reset();
+          database.setPrimary(region.id);
+          return;
+        }
+        case "toggle-replica":
+          playRegionToggleSound(
+            region.id === primaryRegion || readRegions.includes(region.id),
+            primaryRegion !== null
+          );
+          toggleRegion(region.id);
+          return;
+        case "place-client":
+          playSelectSound();
+          setSharedClientLocation(region.lat, region.lon);
+          return;
+        case "none":
+          return;
+        default: {
+          const _exhaustive: never = interaction;
+          return _exhaustive;
+        }
       }
     },
-    [activeStep, primaryRegion, readRegions, toggleRegion]
+    [activeLessonId, primaryRegion, readRegions, toggleRegion]
   );
 
   const startWithSuggestedRegion = useCallback(() => {
@@ -411,26 +382,26 @@ export function DistributedConceptsApp({
     const database = useDatabaseStore.getState();
     database.reset();
     database.setPrimary(suggestedRegion.id);
-    useOnboardingStore
-      .getState()
-      .markStepComplete("distributed-service");
   }, [suggestedRegion]);
 
   const restartJourney = useCallback(() => {
     useDatabaseStore.getState().reset();
     resetLessonSimulations();
-    navigateToStep(HOME_STEP);
-  }, [navigateToStep]);
+    navigateToLesson(null);
+  }, [navigateToLesson]);
 
   // ── Globe click handler (steps 2-4) ─────────────────────────────────
   const handleGlobeClick = useCallback(
     (lat: number, lon: number) => {
-      if (activeStep >= 2 && activeStep <= 4) {
+      if (
+        activeLessonId &&
+        getRegionInteraction(activeLessonId) === "place-client"
+      ) {
         playSelectSound();
         setSharedClientLocation(lat, lon);
       }
     },
-    [activeStep]
+    [activeLessonId]
   );
 
   // ── Consistency: nearest region computation ─────────────────────────
@@ -444,13 +415,14 @@ export function DistributedConceptsApp({
   );
 
   const nearest = useMemo(() => {
-    if (activeStep !== 4 || !consistencyClientLocation) return null;
+    if (activeLessonId !== "stale-read" || !consistencyClientLocation)
+      return null;
     return findNearestRegion(
       consistencyClientLocation.lat,
       consistencyClientLocation.lon,
       allRegionIds
     );
-  }, [activeStep, consistencyClientLocation, allRegionIds]);
+  }, [activeLessonId, consistencyClientLocation, allRegionIds]);
 
   const nearestIsPrimary = nearest?.region.id === primaryRegion;
   const replicaRegionId =
@@ -461,7 +433,7 @@ export function DistributedConceptsApp({
   const newPrimaryId = useFailoverStore((s) => s.newPrimaryId);
 
   const effectivePrimary = useMemo(() => {
-    if (activeStep !== 5) return primaryRegion;
+    if (activeLessonId !== "recovery") return primaryRegion;
     if (failoverPhase === "idle") return primaryRegion;
     if (
       failoverPhase === "elected" ||
@@ -470,10 +442,10 @@ export function DistributedConceptsApp({
     )
       return newPrimaryId;
     return null;
-  }, [activeStep, failoverPhase, primaryRegion, newPrimaryId]);
+  }, [activeLessonId, failoverPhase, primaryRegion, newPrimaryId]);
 
   const cameraTarget = useMemo(() => {
-    if (activeStep !== 5) return undefined;
+    if (activeLessonId !== "recovery") return undefined;
     if (failoverPhase === "complete") return null;
     if (
       failoverPhase === "electing" ||
@@ -490,73 +462,54 @@ export function DistributedConceptsApp({
       if (r) return { lat: r.lat, lon: r.lon };
     }
     return null;
-  }, [activeStep, failoverPhase, primaryRegion, newPrimaryId]);
+  }, [activeLessonId, failoverPhase, primaryRegion, newPrimaryId]);
 
   // ── Step completion tracking (drives nav checkmarks) ────────────────
   const writePhase = useWriteFlowStore((s) => s.phase);
   const readPhase = useReadFlowStore((s) => s.phase);
   const racePhase = useConsistencyRaceStore((s) => s.phase);
-  const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
+  const completeLesson = useCurriculumProgressStore(
+    (state) => state.completeLesson
+  );
+  const completionFacts = useMemo(
+    () => ({
+      primaryRegion,
+      readRegionCount: readRegions.length,
+      writePhase,
+      readPhase,
+      consistencyPhase: racePhase,
+      failoverPhase,
+    }),
+    [
+      primaryRegion,
+      readRegions.length,
+      writePhase,
+      readPhase,
+      racePhase,
+      failoverPhase,
+    ]
+  );
+  const isCurrentStepComplete = activeLessonId
+    ? isLessonComplete(activeLessonId, completionFacts)
+    : false;
 
   useEffect(() => {
-    if (
-      activeStep === 1 &&
-      primaryRegion &&
-      readRegions.length > 0
-    ) {
-      markStepComplete("replication");
-    }
-    if (activeStep === 2 && writePhase === "complete") {
-      markStepComplete("write-path");
-    }
-    if (activeStep === 3 && readPhase === "complete") {
-      markStepComplete("replica-read");
-    }
-    if (
-      activeStep === 4 &&
-      (racePhase === "result" || racePhase === "complete")
-    ) {
-      markStepComplete("stale-read");
-    }
-    if (activeStep === 5 && failoverPhase === "complete") {
-      markStepComplete("recovery");
+    if (activeLessonId && isCurrentStepComplete) {
+      completeLesson(activeLessonId);
     }
   }, [
-    activeStep,
-    primaryRegion,
-    readRegions,
-    writePhase,
-    readPhase,
-    racePhase,
-    failoverPhase,
-    markStepComplete,
+    activeLessonId,
+    completeLesson,
+    isCurrentStepComplete,
   ]);
-
-  const isCurrentStepComplete =
-    isHome
-      ? false
-      : activeStep === 0
-      ? primaryRegion !== null
-      : activeStep === 1
-        ? primaryRegion !== null && readRegions.length > 0
-        : activeStep === 2
-          ? writePhase === "complete"
-          : activeStep === 3
-            ? readPhase === "complete"
-            : activeStep === 4
-              ? racePhase === "result" || racePhase === "complete"
-              : failoverPhase === "complete";
 
   // ── Derive GlobeScene props per step ────────────────────────────────
   const globePrimaryRegion =
-    activeStep === 5 ? effectivePrimary : primaryRegion;
+    activeLessonId === "recovery" ? effectivePrimary : primaryRegion;
 
-  // ── Per-step view table ─────────────────────────────────────────────
-  // One row per step: globe overlays, panels, and globe behavior flags.
-  // Step metadata (titles, hints) lives in lib/steps.ts.
-  const stepViews = [
-    // 0 — Globe Explorer
-    {
+  // Rendering stays explicit while curriculum identity remains stable.
+  const lessonViews = {
+    "distributed-service": {
       viz: null,
       left: null,
       right: null,
@@ -565,8 +518,7 @@ export function DistributedConceptsApp({
       showUserDbConnection: false,
       hideUserLocation: false,
     },
-    // 1 — Region Builder
-    {
+    replication: {
       viz: (
         <>
           <LatencyHeatmap />
@@ -576,7 +528,8 @@ export function DistributedConceptsApp({
       left: (
         <RegionBuilder
           suggestedRegionId={suggestedRegion?.id}
-          onNext={() => navigateToStep(2)}
+          onNext={() => navigateToLesson("write-path")}
+          onRegionHover={setHoveredRegionId}
         />
       ),
       right: <LatencyStats />,
@@ -585,23 +538,21 @@ export function DistributedConceptsApp({
       showUserDbConnection: true,
       hideUserLocation: false,
     },
-    // 2 — Write Flow
-    {
+    "write-path": {
       viz: (
         <>
           <ConnectionArcs />
           <WriteFlowVisualization />
         </>
       ),
-      left: <WritePanel onNext={() => navigateToStep(3)} />,
+      left: <WritePanel onNext={() => navigateToLesson("replica-read")} />,
       right: isMobile ? null : <EventTimeline />,
       regionsClickable: true,
       clientPlaceable: true,
       showUserDbConnection: false,
       hideUserLocation: true,
     },
-    // 3 — Read Flow
-    {
+    "replica-read": {
       viz: (
         <>
           <ConnectionArcs />
@@ -609,15 +560,14 @@ export function DistributedConceptsApp({
           <ReadFlowVisualization />
         </>
       ),
-      left: <ReadPanel onNext={() => navigateToStep(4)} />,
+      left: <ReadPanel onNext={() => navigateToLesson("stale-read")} />,
       right: <LatencyComparison />,
       regionsClickable: true,
       clientPlaceable: true,
       showUserDbConnection: true,
       hideUserLocation: false,
     },
-    // 4 — Consistency Race
-    {
+    "stale-read": {
       viz: (
         <>
           <ConnectionArcs />
@@ -638,7 +588,7 @@ export function DistributedConceptsApp({
         <ConsistencyRacePanel
           replicaRegionId={replicaRegionId}
           nearestIsPrimary={nearestIsPrimary}
-          onNext={() => navigateToStep(5)}
+          onNext={() => navigateToLesson("recovery")}
         />
       ),
       right: null,
@@ -647,8 +597,7 @@ export function DistributedConceptsApp({
       showUserDbConnection: false,
       hideUserLocation: false,
     },
-    // 5 — Failover
-    {
+    recovery: {
       viz: (
         <>
           {failoverPhase === "idle" && <ConnectionArcs />}
@@ -662,7 +611,18 @@ export function DistributedConceptsApp({
       showUserDbConnection: false,
       hideUserLocation: false,
     },
-  ];
+  } satisfies Record<
+    StepId,
+    {
+      viz: React.ReactNode;
+      left: React.ReactNode;
+      right: React.ReactNode;
+      regionsClickable: boolean;
+      clientPlaceable: boolean;
+      showUserDbConnection: boolean;
+      hideUserLocation: boolean;
+    }
+  >;
   const homeView = {
     viz: null,
     left: null,
@@ -672,7 +632,7 @@ export function DistributedConceptsApp({
     showUserDbConnection: false,
     hideUserLocation: false,
   };
-  const view = isHome ? homeView : stepViews[activeStep];
+  const view = activeLessonId ? lessonViews[activeLessonId] : homeView;
   const hasRightPanel = view.right !== null && !isLanding && !isHome;
   const placedPrimary = primaryRegion
     ? getRegionById(primaryRegion)
@@ -698,7 +658,12 @@ export function DistributedConceptsApp({
           showUserDbConnection={view.showUserDbConnection}
           hideUserLocation={view.hideUserLocation}
           cameraTarget={isHome || isLanding ? undefined : cameraTarget}
-          focusSelectedRegions={!isHome && !isLanding && activeStep >= 2}
+          focusSelectedRegions={
+            activeLessonId
+              ? lessonNeedsPreparedTopology(activeLessonId) && !isLanding
+              : false
+          }
+          hoveredRegionId={hoveredRegionId}
         >
           {view.viz}
         </GlobeScene>
@@ -715,7 +680,7 @@ export function DistributedConceptsApp({
             key="curriculum-home"
             activeChapterId={homeChapterId}
             onChapterChange={setHomeChapterId}
-            onStart={() => openFromCurriculum(0)}
+            onStart={() => openFromCurriculum("distributed-service")}
             onSelectLesson={openFromCurriculum}
           />
         ) : null}
@@ -727,7 +692,7 @@ export function DistributedConceptsApp({
           <HomeIntro
             key="home-intro"
             onBrowse={openCurriculum}
-            onStart={() => openFromCurriculum(0)}
+            onStart={() => openFromCurriculum("distributed-service")}
           />
         ) : null}
       </AnimatePresence>
@@ -770,7 +735,7 @@ export function DistributedConceptsApp({
                 <>
                   <OpeningMessageFlow city={placedPrimary.city} />
                   <button
-                    onClick={() => navigateToStep(1)}
+                    onClick={() => navigateToLesson("replication")}
                     className="mt-3 min-h-11 rounded-full bg-emerald-400 pl-5 pr-[18px] text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-300 active:scale-[0.96]"
                   >
                     Add a replica
@@ -826,9 +791,19 @@ export function DistributedConceptsApp({
             <div className="grid shrink-0 grid-cols-[44px_1fr_44px] items-center gap-2 border-t border-[var(--line-subtle)] bg-[var(--surface-panel-strong)] px-2 py-2 pb-safe md:hidden">
               {/* Back button */}
               <button
-                onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
+                onClick={() => {
+                  if (!activeLessonId) return;
+                  const previous = getAdjacentLessonId(
+                    activeLessonId,
+                    "previous"
+                  );
+                  if (previous) navigateToLesson(previous);
+                }}
                 className={`flex h-11 w-11 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/80 text-zinc-400 transition-[border-color,color,scale] duration-150 hover:border-emerald-500/50 hover:text-emerald-400 active:scale-[0.96] ${
-                  activeStep <= 0 ? "opacity-30 pointer-events-none" : ""
+                  !activeLessonId ||
+                  getAdjacentLessonId(activeLessonId, "previous") === null
+                    ? "opacity-30 pointer-events-none"
+                    : ""
                 }`}
                 aria-label="Previous step"
               >
@@ -848,19 +823,22 @@ export function DistributedConceptsApp({
 
               {/* Next stays available for free exploration, then brightens on completion. */}
               <button
-                onClick={() =>
-                  activeStep >= LAST_STEP
-                    ? restartJourney()
-                    : navigateToStep(Math.min(activeStep + 1, LAST_STEP))
+                onClick={() => {
+                  if (!activeLessonId) return;
+                  const next = getAdjacentLessonId(activeLessonId, "next");
+                  if (next) navigateToLesson(next);
+                  else restartJourney();
+                }}
+                disabled={
+                  activeLessonId === "recovery" && !isCurrentStepComplete
                 }
-                disabled={activeStep >= LAST_STEP && !isCurrentStepComplete}
                 className={`flex h-11 w-11 items-center justify-center rounded-full border transition-[background-color,border-color,color,scale] duration-150 active:not-disabled:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30 ${
                   isCurrentStepComplete
                     ? "border-emerald-400 bg-emerald-400 text-zinc-950"
                     : "border-zinc-800 bg-zinc-900/80 text-zinc-400"
                 }`}
                 aria-label={
-                  activeStep >= LAST_STEP
+                  activeLessonId === "recovery"
                     ? "Return to curriculum"
                     : `Next: ${activeLesson.nextAction}`
                 }
@@ -901,8 +879,8 @@ export function DistributedConceptsApp({
         }`}
         >
           <LearningPathNav
-            activeStep={activeStep}
-            onStepChange={navigateToStep}
+            activeLessonId={activeLessonId ?? undefined}
+            onLessonChange={navigateToLesson}
           />
           <p className="text-xs text-zinc-400">{activeLesson.hint}</p>
         </div>
@@ -912,16 +890,20 @@ export function DistributedConceptsApp({
       {isLanding && (
         <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center gap-2 pb-4">
           <LearningPathNav
-            activeStep={activeStep}
-            onStepChange={navigateToStep}
+            activeLessonId={activeLessonId ?? undefined}
+            onLessonChange={navigateToLesson}
           />
         </div>
       )}
 
       {/* Back step button — desktop only */}
-      {!isHome && !isLanding && activeStep > 0 && (
+      {!isHome && !isLanding && activeLessonId &&
+        getAdjacentLessonId(activeLessonId, "previous") && (
         <button
-          onClick={() => navigateToStep(Math.max(activeStep - 1, 0))}
+          onClick={() => {
+            const previous = getAdjacentLessonId(activeLessonId, "previous");
+            if (previous) navigateToLesson(previous);
+          }}
           className="fixed left-[426px] top-1/2 z-30 hidden -translate-y-1/2 cursor-pointer items-center gap-2 rounded-full border border-[var(--line-subtle)] bg-[var(--surface-panel)] px-4 py-2.5 text-sm text-zinc-400 backdrop-blur-sm transition-[border-color,color] duration-150 hover:border-emerald-500/50 hover:text-emerald-400 md:flex"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">

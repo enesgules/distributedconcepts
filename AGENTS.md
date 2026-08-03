@@ -17,6 +17,7 @@ then advance each simulation one system action at a time.
 
 ```bash
 npm run dev
+npm test
 npm run lint
 npm run build
 ```
@@ -26,21 +27,24 @@ deploy to the production Vercel project at `distributedconcepts.com`.
 
 ## Application architecture
 
-`src/app/page.tsx` owns the quiet home, curriculum view, six interactive
-lessons, responsive layout, globe composition, readable lesson URLs, and
-lesson completion. The globe stays mounted while the homepage, lesson panels,
-and visualizations change. Route files under `src/app/lessons` supply
-indexable metadata and static paths for the shared client experience.
+`src/app/page.tsx` owns the quiet home, curriculum view, responsive layout, and
+globe composition. `src/lib/curriculum-runtime.ts` owns stable lesson identity,
+order, readable lesson URLs, direct-entry preparation, and completion rules.
+The globe stays mounted while the homepage, lesson panels, and visualizations
+change. Route files under `src/app/lessons` supply indexable metadata and
+static paths for the shared client experience.
 
 Lesson navigation writes `/lessons/<slug>` with the History API. Browser Back,
 browser Forward, Escape, and the curriculum button must restore the matching
 view without reloading the globe.
 
-Each simulation uses three pieces:
+Each simulation uses four pieces:
 
-1. A Zustand store owns the typed phase, progress values, and lesson actions.
-2. A globe visualization advances animation only for the current phase.
-3. A panel explains the active phase and lets the learner trigger the next
+1. A pure lesson simulation module owns valid actions, elapsed-time
+   transitions, results, events, and replay.
+2. A Zustand store adapts the simulation to React and runs sound effects.
+3. A globe visualization reports frame time and renders the current state.
+4. A panel explains the active phase and lets the learner trigger the next
    causal action.
 
 Do not put the full simulation on one timer chain. A visual phase may animate
@@ -99,9 +103,10 @@ Current phase checkpoints:
 - Election promotes an in-region backup, so failover does not move the
   geographic write region.
 
-The 32 AWS and GCP regions are defined in `src/lib/regions.ts`. Keep provider
-locking in the region builder because the simulation does not model
-cross-provider replication.
+The 32 AWS and GCP regions are defined in `src/lib/regions.ts`.
+`src/lib/topology.ts` enforces provider locking because the simulation does not
+model cross-provider replication. The region builder also filters choices so
+the learner does not see invalid replicas.
 
 ## Globe conventions
 
@@ -133,12 +138,12 @@ cross-provider replication.
 
 ## State and persistence
 
-The database topology and simulation phases live in separate Zustand stores.
-Moving the shared client resets any active simulation so visuals cannot retain
-progress for the previous location.
+The topology rules and lesson simulations are pure modules behind separate
+Zustand adapters. Moving the shared client resets any active simulation so
+visuals cannot retain progress for the previous location.
 
-The onboarding store persists lesson completion state. Bump its storage key
-when a curriculum rewrite invalidates existing progress.
+The curriculum progress store persists lesson completion state. Bump its
+storage key when a curriculum rewrite invalidates existing progress.
 
 Persist completion by stable `StepId`, never by array position. Direct lesson
 entry may prepare the minimum valid same-provider topology needed by a

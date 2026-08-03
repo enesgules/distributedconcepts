@@ -5,6 +5,22 @@ const SPEED_OF_LIGHT_KM_S = 299_792;
 const NETWORK_OVERHEAD = 2.2;
 const BASE_LATENCY_MS = 1;
 const JITTER_RANGE = 0.12; // ±12% random variation
+const GLOBAL_COVERAGE_SAMPLE_COUNT = 50;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+export type RandomSource = () => number;
+
+const GLOBAL_COVERAGE_SAMPLES = Array.from(
+  { length: GLOBAL_COVERAGE_SAMPLE_COUNT },
+  (_, index) => {
+    const y = 1 - (2 * (index + 0.5)) / GLOBAL_COVERAGE_SAMPLE_COUNT;
+    return {
+      lat: Math.asin(y) * (180 / Math.PI),
+      lon: (((index * GOLDEN_ANGLE + Math.PI) % (2 * Math.PI)) - Math.PI) *
+        (180 / Math.PI),
+    };
+  }
+);
 
 // ── Real-world latency lookup (CloudPing P50 median values) ─────────
 // Key format: "regionA,regionB" (alphabetically sorted)
@@ -146,28 +162,31 @@ function formulaLatencyMs(
   return BASE_LATENCY_MS + roundTripMs * NETWORK_OVERHEAD;
 }
 
-function jitter(): number {
-  return 1 + (Math.random() * 2 - 1) * JITTER_RANGE;
+function jitter(random: RandomSource): number {
+  return 1 + (random() * 2 - 1) * JITTER_RANGE;
 }
 
 /**
  * Estimate round-trip network latency between two geographic points.
  * Includes slight random jitter to simulate real-world variance.
  */
-export function estimateLatency(
+export function sampleLatency(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
+  random: RandomSource = Math.random
 ): number {
-  return Math.round(formulaLatencyMs(lat1, lon1, lat2, lon2) * jitter());
+  return Math.round(
+    formulaLatencyMs(lat1, lon1, lat2, lon2) * jitter(random)
+  );
 }
 
 /**
  * Deterministic latency estimate (no jitter). Used for heatmap computation
  * where consistency across pixels matters.
  */
-export function estimateLatencyStable(
+export function compareLatency(
   lat1: number,
   lon1: number,
   lat2: number,
@@ -189,7 +208,7 @@ export function findNearestRegion(
   for (const id of regionIds) {
     const region = getRegionById(id);
     if (!region) continue;
-    const latencyMs = estimateLatencyStable(lat, lon, region.lat, region.lon);
+    const latencyMs = compareLatency(lat, lon, region.lat, region.lon);
     if (!best || latencyMs < best.latencyMs) {
       best = { region, latencyMs };
     }
@@ -213,19 +232,26 @@ export function staleReadMarginMs(
  * Get latency between two regions by ID.
  * Uses real CloudPing data when available, falls back to formula.
  */
-export function estimateLatencyBetweenRegions(
+export function compareLatencyBetweenRegions(
   regionIdA: string,
   regionIdB: string
 ): number | null {
-  // Try real measured data first, add slight jitter
   const measured = lookupRegionLatency(regionIdA, regionIdB);
-  if (measured !== null) return Math.round(measured * jitter());
+  if (measured !== null) return measured;
 
-  // Fallback to formula
   const a = getRegionById(regionIdA);
   const b = getRegionById(regionIdB);
   if (!a || !b) return null;
-  return estimateLatency(a.lat, a.lon, b.lat, b.lon);
+  return compareLatency(a.lat, a.lon, b.lat, b.lon);
+}
+
+export function sampleLatencyBetweenRegions(
+  regionIdA: string,
+  regionIdB: string,
+  random: RandomSource = Math.random
+): number | null {
+  const baseline = compareLatencyBetweenRegions(regionIdA, regionIdB);
+  return baseline === null ? null : Math.round(baseline * jitter(random));
 }
 
 /**
@@ -240,7 +266,7 @@ export function calculateAverageReadLatency(
   let total = 0;
   let count = 0;
   for (const id of readRegionIds) {
-    const latency = estimateLatencyBetweenRegions(primaryId, id);
+    const latency = compareLatencyBetweenRegions(primaryId, id);
     if (latency === null) continue;
     total += latency;
     count++;
@@ -263,20 +289,16 @@ export function calculateGlobalCoverage(
 
   if (allRegions.length === 0) return 999;
 
-  const SAMPLES = 50;
   let totalLatency = 0;
 
-  for (let i = 0; i < SAMPLES; i++) {
-    const lat = Math.asin(2 * Math.random() - 1) * (180 / Math.PI);
-    const lon = Math.random() * 360 - 180;
-
+  for (const { lat, lon } of GLOBAL_COVERAGE_SAMPLES) {
     let minLatency = Infinity;
     for (const region of allRegions) {
-      const latency = estimateLatencyStable(lat, lon, region.lat, region.lon);
+      const latency = compareLatency(lat, lon, region.lat, region.lon);
       if (latency < minLatency) minLatency = latency;
     }
     totalLatency += minLatency;
   }
 
-  return Math.round(totalLatency / SAMPLES);
+  return Math.round(totalLatency / GLOBAL_COVERAGE_SAMPLES.length);
 }

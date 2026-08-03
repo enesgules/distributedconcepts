@@ -1,23 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line } from "@react-three/drei";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useConsistencyRaceStore } from "@/lib/store/consistency-race-store";
 import { getRegionById } from "@/lib/regions";
-import { staleReadMarginMs } from "@/lib/simulation/latency";
-import { ANIMATION_SPEED, advance } from "@/lib/simulation/animation";
 import { computeArcPoints } from "@/lib/arc-utils";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
-import {
-  playPacketSendSound,
-  playAckSound,
-  playReplicaArriveSound,
-  playStaleSound,
-} from "@/lib/sounds";
 
 interface Props {
   replicaRegionId: string;
@@ -37,40 +29,6 @@ export default function ConsistencyRaceVisualization({
   const readProgress = useConsistencyRaceStore((s) => s.readProgress);
   const readStarted = useConsistencyRaceStore((s) => s.readStarted);
   const isStale = useConsistencyRaceStore((s) => s.isStale);
-
-  const readDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup all timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (readDelayTimeoutRef.current) clearTimeout(readDelayTimeoutRef.current);
-      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "racing" || readStarted) return;
-
-    const store = useConsistencyRaceStore.getState();
-    const scaledDelay = Math.max(store.readDelay * ANIMATION_SPEED * 1000, 0);
-    readDelayTimeoutRef.current = setTimeout(() => {
-      const latest = useConsistencyRaceStore.getState();
-      if (latest.phase === "racing" && !latest.readStarted) {
-        playPacketSendSound();
-        latest.markReadStarted();
-      }
-    }, scaledDelay);
-
-    return () => {
-      if (readDelayTimeoutRef.current) {
-        clearTimeout(readDelayTimeoutRef.current);
-        readDelayTimeoutRef.current = null;
-      }
-    };
-  }, [phase, readStarted]);
 
   const primary = primaryRegionId ? getRegionById(primaryRegionId) : null;
   const replica = getRegionById(replicaRegionId);
@@ -103,68 +61,8 @@ export default function ConsistencyRaceVisualization({
     );
   }, [clientLocation, replica]);
 
-  // Animation loop
   useFrame((_, delta) => {
-    const store = useConsistencyRaceStore.getState();
-
-    // --- Writing phase: client → primary ---
-    if (store.phase === "writing") {
-      const p = advance(store.writeProgress, delta, store.primaryLatencyMs);
-      store.setWriteProgress(p);
-
-      if (p >= 1) {
-        playAckSound();
-        store.setPhase("write-ack");
-      }
-    }
-
-    // --- Racing phase: replication wave + read packet ---
-    if (store.phase === "racing") {
-      // Replication wave always progresses
-      const repP = advance(
-        store.replicationProgress,
-        delta,
-        store.replicationLatencyMs
-      );
-      store.setReplicationProgress(repP);
-
-      // Read packet progresses only after delay
-      if (store.readStarted) {
-        store.setReadProgress(
-          advance(store.readProgress, delta, store.readLatencyMs)
-        );
-      }
-
-      // Check if either arrived
-      const replicationArrived = repP >= 1;
-      const readArrived = store.readStarted && store.readProgress >= 1;
-
-      if (readArrived || replicationArrived) {
-        // Determine result based on actual latency math (not animation timing)
-        // ("stale", not "isStale" — avoid shadowing the store selector above)
-        const stale =
-          staleReadMarginMs(
-            store.readDelay,
-            store.readLatencyMs,
-            store.replicationLatencyMs
-          ) < 0;
-
-        if (stale) {
-          playStaleSound();
-        } else {
-          playReplicaArriveSound();
-        }
-
-        store.onRaceResult(stale);
-
-        resultTimeoutRef.current = setTimeout(() => {
-          const s = useConsistencyRaceStore.getState();
-          if (s.phase === "result") {
-            s.setPhase("complete");
-          }
-        }, 600);
-      }
-    }
+    useConsistencyRaceStore.getState().tick(delta);
   });
 
   const isAnimating = phase !== "idle" && phase !== "complete";

@@ -11,7 +11,7 @@ import {
 } from "@/lib/regions";
 import {
   calculateGlobalCoverage,
-  estimateLatencyBetweenRegions,
+  compareLatencyBetweenRegions,
 } from "@/lib/simulation/latency";
 import { playRegionToggleSound } from "@/lib/sounds";
 import { Toggle } from "@/components/ui/toggle";
@@ -108,17 +108,18 @@ function RegionListItem({
 interface RegionBuilderProps {
   suggestedRegionId?: string;
   onNext?: () => void;
+  onRegionHover?: (regionId: string | null) => void;
 }
 
 export default function RegionBuilder({
   suggestedRegionId,
   onNext,
+  onRegionHover,
 }: RegionBuilderProps) {
   const [query, setQuery] = useState("");
   const primaryRegion = useDatabaseStore((s) => s.primaryRegion);
   const readRegions = useDatabaseStore((s) => s.readRegions);
   const toggleRegion = useDatabaseStore((s) => s.toggleRegion);
-  const setHoveredRegion = useDatabaseStore((s) => s.setHoveredRegion);
   const reset = useDatabaseStore((s) => s.reset);
 
   const activeProvider = primaryRegion
@@ -182,7 +183,7 @@ export default function RegionBuilder({
 
   function getLatency(regionId: string): number | null {
     if (!primaryRegion || regionId === primaryRegion) return null;
-    return estimateLatencyBetweenRegions(primaryRegion, regionId);
+    return compareLatencyBetweenRegions(primaryRegion, regionId);
   }
 
   function handleToggle(region: Region) {
@@ -269,7 +270,7 @@ export default function RegionBuilder({
               latency={getLatency(recommendedReplica.id)}
               onToggle={() => handleToggle(recommendedReplica)}
               onHover={(hovered) =>
-                setHoveredRegion(hovered ? recommendedReplica.id : null)
+                onRegionHover?.(hovered ? recommendedReplica.id : null)
               }
             />
             <p className="mt-1.5 px-1 text-xs leading-5 text-[var(--text-tertiary)]">
@@ -334,7 +335,7 @@ export default function RegionBuilder({
               latency={null}
               onToggle={() => handleToggle(suggestedRegion)}
               onHover={(hovered) =>
-                setHoveredRegion(hovered ? suggestedRegion.id : null)
+                onRegionHover?.(hovered ? suggestedRegion.id : null)
               }
             />
           </div>
@@ -354,7 +355,9 @@ export default function RegionBuilder({
                     role={getRole(region.id)}
                     latency={getLatency(region.id)}
                     onToggle={() => handleToggle(region)}
-                    onHover={(h) => setHoveredRegion(h ? region.id : null)}
+                    onHover={(hovered) =>
+                      onRegionHover?.(hovered ? region.id : null)
+                    }
                   />
                 ))}
               </div>

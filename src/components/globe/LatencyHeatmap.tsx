@@ -6,7 +6,7 @@ import { Html, Line } from "@react-three/drei";
 import * as THREE from "three";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { getRegionById, type Region } from "@/lib/regions";
-import { estimateLatencyStable } from "@/lib/simulation/latency";
+import { compareLatency } from "@/lib/simulation/latency";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { GLOBE_RADIUS } from "./Globe";
 
@@ -81,7 +81,7 @@ function computeZones(activeRegionIds: string[]): ZoneResult[] {
     let minLatency = Infinity;
     let nearest = regions[0];
     for (const region of regions) {
-      const latency = estimateLatencyStable(
+      const latency = compareLatency(
         zone.lat,
         zone.lon,
         region.lat,

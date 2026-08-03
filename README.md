@@ -55,6 +55,7 @@ Everything is simulated client-side. No real database connection is needed.
 
 ```bash
 npm install
+npm test
 npm run dev
 ```
 
@@ -101,11 +102,12 @@ src/
     ├── sounds.ts                       : Sound effects
     ├── hooks/use-geolocation.ts        : Browser geolocation hook
     ├── simulation/latency.ts           : Distance-based latency estimation
+    ├── simulation/*-simulation.ts      : Pure interactive lesson state machines
+    ├── curriculum-runtime.ts           : Lesson identity, routes, preparation, completion
+    ├── topology.ts                     : Valid leader and read-replica topology
     └── store/                          : Zustand stores
-        ├── database-store.ts           : Leader and read-replica config
-        ├── write-flow-store.ts         : Write lesson state
-        ├── read-flow-store.ts          : Read lesson state
-        ├── consistency-race-store.ts   : Consistency lesson state
-        ├── failover-store.ts           : Recovery lesson state
-        └── onboarding-store.ts         : Stable lesson progress persistence
+        ├── database-store.ts           : Topology adapter
+        ├── *-flow-store.ts             : Lesson simulation adapters
+        ├── failover-store.ts           : Recovery simulation adapter
+        └── curriculum-progress-store.ts : Stable lesson progress persistence
 ```

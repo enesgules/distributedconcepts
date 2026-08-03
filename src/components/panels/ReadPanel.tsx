@@ -5,8 +5,7 @@ import { motion } from "framer-motion";
 import { useDatabaseStore } from "@/lib/store/database-store";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
 import { getRegionById } from "@/lib/regions";
-import { estimateLatency, findNearestRegion } from "@/lib/simulation/latency";
-import { playPacketSendSound } from "@/lib/sounds";
+import { findNearestRegion, sampleLatency } from "@/lib/simulation/latency";
 import {
   FlowPanel,
   RegionSummary,
@@ -134,20 +133,19 @@ export default function ReadPanel({ onNext }: { onNext?: () => void }) {
   const handleExecute = useCallback(() => {
     if (!clientLocation || !nearest || !primary || !primaryRegion) return;
 
-    const nearestLatency = estimateLatency(
+    const nearestLatency = sampleLatency(
       clientLocation.lat,
       clientLocation.lon,
       nearest.region.lat,
       nearest.region.lon
     );
-    const primaryLatency = estimateLatency(
+    const primaryLatency = sampleLatency(
       clientLocation.lat,
       clientLocation.lon,
       primary.lat,
       primary.lon
     );
 
-    playPacketSendSound();
     useReadFlowStore
       .getState()
       .startRead(nearest.region.id, nearestLatency, primaryLatency);

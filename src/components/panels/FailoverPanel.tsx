@@ -89,7 +89,7 @@ export default function FailoverPanel({
   const startDetection = useFailoverStore((s) => s.startDetection);
   const startElection = useFailoverStore((s) => s.startElection);
   const startRecovery = useFailoverStore((s) => s.startRecovery);
-  const reset = useFailoverStore((s) => s.reset);
+  const replay = useFailoverStore((s) => s.replay);
 
   const failedRegion = failedRegionId ? getRegionById(failedRegionId) : null;
   const currentPrimary = primaryRegion ? getRegionById(primaryRegion) : null;
@@ -186,7 +186,7 @@ export default function FailoverPanel({
                 </button>
               )}
               <button
-                onClick={reset}
+                onClick={replay}
                 className="min-h-10 w-full cursor-pointer rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-2 text-xs font-medium text-zinc-300 transition-[background-color,border-color,scale] duration-150 hover:border-zinc-600 hover:bg-zinc-800 active:scale-[0.96]"
               >
                 Replay failover

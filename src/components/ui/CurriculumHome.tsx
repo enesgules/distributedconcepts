@@ -5,13 +5,12 @@ import { AnimatePresence, motion, type Transition } from "framer-motion";
 import Link from "next/link";
 import {
   CURRICULUM_CHAPTERS,
-  getStepIndexById,
-  STEPS,
   type ChapterId,
   type CurriculumChapter,
   type StepId,
 } from "@/lib/steps";
-import { useOnboardingStore } from "@/lib/store/onboarding-store";
+import { getLessonUrl } from "@/lib/curriculum-runtime";
+import { useCurriculumProgressStore } from "@/lib/store/curriculum-progress-store";
 import {
   Tabs,
   TabsContent,
@@ -22,7 +21,7 @@ import {
 interface CurriculumHomeProps {
   activeChapterId: ChapterId;
   onChapterChange: (chapterId: ChapterId) => void;
-  onSelectLesson: (step: number) => void;
+  onSelectLesson: (lessonId: StepId) => void;
   onStart: () => void;
 }
 
@@ -96,12 +95,12 @@ function ConceptSignal({ chapter }: { chapter: CurriculumChapter }) {
 
 function CurriculumChapterPanel({
   chapter,
-  completedStepIds,
+  completedLessonIds,
   onSelectLesson,
 }: {
   chapter: CurriculumChapter;
-  completedStepIds: readonly StepId[];
-  onSelectLesson: (step: number) => void;
+  completedLessonIds: readonly StepId[];
+  onSelectLesson: (lessonId: StepId) => void;
 }) {
   return (
     <motion.div
@@ -162,16 +161,15 @@ function CurriculumChapterPanel({
             );
           }
 
-          const stepIndex = getStepIndexById(lesson.stepId);
-          const isComplete = completedStepIds.includes(lesson.stepId);
+          const isComplete = completedLessonIds.includes(lesson.stepId);
 
           return (
             <Link
               key={lesson.stepId}
-              href={`/lessons/${STEPS[stepIndex].slug}`}
+              href={getLessonUrl(lesson.stepId)}
               onClick={(event) => {
                 event.preventDefault();
-                onSelectLesson(stepIndex);
+                onSelectLesson(lesson.stepId);
               }}
               className="group flex min-h-[72px] w-full items-center gap-3 rounded-2xl bg-[var(--surface-inset)] px-3.5 py-3 text-left shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,box-shadow,scale] duration-150 hover:bg-[var(--surface-hover)] hover:shadow-[inset_0_0_0_1px_var(--line-strong)] active:scale-[0.98]"
             >
@@ -217,8 +215,8 @@ export default function CurriculumHome({
   const [tabOrientation, setTabOrientation] = useState<"horizontal" | "vertical">(
     "horizontal"
   );
-  const completedStepIds = useOnboardingStore(
-    (state) => state.completedStepIds
+  const completedLessonIds = useCurriculumProgressStore(
+    (state) => state.completedLessonIds
   );
 
   const activeChapter =
@@ -394,7 +392,7 @@ export default function CurriculumHome({
                 >
                   <CurriculumChapterPanel
                     chapter={chapter}
-                    completedStepIds={completedStepIds}
+                    completedLessonIds={completedLessonIds}
                     onSelectLesson={onSelectLesson}
                   />
                 </TabsContent>

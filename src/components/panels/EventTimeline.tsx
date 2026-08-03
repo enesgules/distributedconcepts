@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useWriteFlowStore, type WriteFlowEvent } from "@/lib/store/write-flow-store";
+import type { WriteFlowEvent } from "@/lib/simulation/write-simulation";
+import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import TimelineEvents, { type TimelineStyle } from "./TimelineEvents";
 
 const typeStyles: Record<WriteFlowEvent["type"], TimelineStyle> = {

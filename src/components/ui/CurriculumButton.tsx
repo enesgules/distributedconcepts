@@ -1,6 +1,6 @@
 "use client";
 
-import { OPEN_CURRICULUM_EVENT } from "@/lib/navigation";
+import { OPEN_CURRICULUM_EVENT } from "@/lib/curriculum-runtime";
 import {
   Tooltip,
   TooltipContent,

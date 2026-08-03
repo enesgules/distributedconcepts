@@ -6,11 +6,9 @@ import { Line } from "@react-three/drei";
 import { useReadFlowStore } from "@/lib/store/read-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
-import { advance } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
-import { playAckSound, playResponseSound } from "@/lib/sounds";
 
 export default function ReadFlowVisualization() {
   const clientLocation = useReadFlowStore((s) => s.clientLocation);
@@ -39,38 +37,8 @@ export default function ReadFlowVisualization() {
     return [...clientToNearestArc].reverse();
   }, [clientToNearestArc]);
 
-  // Animation loop
   useFrame((_, delta) => {
-    const store = useReadFlowStore.getState();
-
-    if (store.phase === "fetching") {
-      const newProgress = advance(
-        store.fetchProgress,
-        delta,
-        store.nearestLatencyMs
-      );
-      store.setFetchProgress(newProgress);
-
-      if (newProgress >= 1) {
-        playAckSound();
-        store.onDataFetched();
-      }
-    }
-
-    if (store.phase === "responding") {
-      const newProgress = advance(
-        store.responseProgress,
-        delta,
-        store.nearestLatencyMs
-      );
-      store.setResponseProgress(newProgress);
-
-      if (newProgress >= 1) {
-        playResponseSound();
-        store.setPhase("complete");
-        useReadFlowStore.setState({ response: '"hello"' });
-      }
-    }
+    useReadFlowStore.getState().tick(delta);
   });
 
   const isAnimating = phase !== "idle";

@@ -6,10 +6,9 @@ import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { getRegionById } from "@/lib/regions";
 import {
-  estimateLatency,
-  estimateLatencyBetweenRegions,
+  sampleLatency,
+  sampleLatencyBetweenRegions,
 } from "@/lib/simulation/latency";
-import { playPacketSendSound, playReplicateSound } from "@/lib/sounds";
 import {
   FlowPanel,
   RegionSummary,
@@ -100,7 +99,7 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
   const handleExecute = useCallback(() => {
     if (!clientLocation || !primary || !primaryRegion) return;
 
-    const primaryLatency = estimateLatency(
+    const primaryLatency = sampleLatency(
       clientLocation.lat,
       clientLocation.lon,
       primary.lat,
@@ -109,17 +108,15 @@ export default function WritePanel({ onNext }: { onNext?: () => void }) {
 
     const replicas = readRegions
       .map((id) => {
-        const latency = estimateLatencyBetweenRegions(primaryRegion, id);
+        const latency = sampleLatencyBetweenRegions(primaryRegion, id);
         return latency !== null ? { regionId: id, latencyMs: latency } : null;
       })
       .filter((r) => r !== null);
 
-    playPacketSendSound();
     useWriteFlowStore.getState().startAnimation(primaryLatency, replicas);
   }, [clientLocation, primary, primaryRegion, readRegions]);
 
   const handleStartReplication = useCallback(() => {
-    playReplicateSound();
     useWriteFlowStore.getState().startReplication();
   }, []);
 

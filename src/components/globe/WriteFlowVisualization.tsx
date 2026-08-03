@@ -7,11 +7,9 @@ import { useDatabaseStore } from "@/lib/store/database-store";
 import { useWriteFlowStore } from "@/lib/store/write-flow-store";
 import { getRegionById } from "@/lib/regions";
 import { computeArcPoints } from "@/lib/arc-utils";
-import { advance } from "@/lib/simulation/animation";
 import ClientMarker from "./ClientMarker";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
-import { playAckSound, playReplicaArriveSound } from "@/lib/sounds";
 
 function ReplicationArc({
   primaryLat,
@@ -83,41 +81,8 @@ export default function WriteFlowVisualization() {
     [readRegions]
   );
 
-  // Animation loop
   useFrame((_, delta) => {
-    const store = useWriteFlowStore.getState();
-
-    if (store.phase === "to-primary") {
-      const newProgress = advance(
-        store.primaryProgress,
-        delta,
-        store.primaryLatencyMs
-      );
-      store.setPrimaryProgress(newProgress);
-
-      if (newProgress >= 1) {
-        playAckSound();
-        store.onPrimaryAck();
-      }
-    }
-
-    if (store.phase === "replicating") {
-      let allArrived = true;
-      for (const replica of store.replicaStatuses) {
-        if (replica.arrived) continue;
-        allArrived = false;
-        const newProgress = advance(replica.progress, delta, replica.latencyMs);
-        store.setReplicaProgress(replica.regionId, newProgress);
-        if (newProgress >= 1 && !replica.arrived) {
-          playReplicaArriveSound();
-          store.onReplicaArrive(replica.regionId);
-        }
-      }
-
-      if (allArrived) {
-        store.setPhase("complete");
-      }
-    }
+    useWriteFlowStore.getState().tick(delta);
   });
 
   // Read animation state for rendering

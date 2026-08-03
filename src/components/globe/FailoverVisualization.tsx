@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -9,19 +9,10 @@ import { useFailoverStore } from "@/lib/store/failover-store";
 import { getRegionById } from "@/lib/regions";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { computeArcPoints } from "@/lib/arc-utils";
-import {
-  advance,
-  latencyToDuration,
-} from "@/lib/simulation/animation";
 import { GLOBE_RADIUS } from "./Globe";
 import DataPacket from "./DataPacket";
 import PrimaryFlash from "./PrimaryFlash";
 import ReplicationWave from "./ReplicationWave";
-import {
-  playFailureAlarmSound,
-  playElectionPulseSound,
-  playRecoveryChimeSound,
-} from "@/lib/sounds";
 
 // Reused across frames to avoid allocating a Vector3 per frame
 const _camDir = new THREE.Vector3();
@@ -233,96 +224,8 @@ export default function FailoverVisualization() {
   const failedRegion = failedRegionId ? getRegionById(failedRegionId) : null;
   const newPrimary = newPrimaryId ? getRegionById(newPrimaryId) : null;
 
-  const soundPlayedRef = useRef<Record<string, boolean>>({});
-
-  // Reset sound flags when the lesson returns to idle
-  useEffect(() => {
-    if (phase === "idle") {
-      soundPlayedRef.current = {};
-    }
-  }, [phase]);
-
-  // Main animation loop
   useFrame((_, delta) => {
-    const store = useFailoverStore.getState();
-
-    if (store.phase === "failure") {
-      const p = Math.min(store.failureFlashProgress + delta / 0.5, 1);
-      store.setFailureFlashProgress(p);
-      store.setArcBreakProgress(Math.min(store.arcBreakProgress + delta / 0.6, 1));
-
-      if (!soundPlayedRef.current.failure) {
-        playFailureAlarmSound();
-        soundPlayedRef.current.failure = true;
-      }
-
-      if (p >= 1 && !store.requestQueueVisible) {
-        store.setRequestQueueVisible(true);
-        store.addEvent({
-          time: 0,
-          label: `${store.queuedRequests.length} write requests queued`,
-          type: "failure",
-        });
-        store.addEvent({
-          time: 0,
-          label: "Read replicas continue serving reads",
-          type: "resume",
-        });
-      }
-    }
-
-    if (store.phase === "detecting") {
-      const p = advance(store.detectionProgress, delta, store.detectionTimeMs);
-      store.setDetectionProgress(p);
-      store.setDowntime(Math.round(p * store.detectionTimeMs));
-    }
-
-    if (store.phase === "electing") {
-      if (!soundPlayedRef.current.election) {
-        playElectionPulseSound();
-        soundPlayedRef.current.election = true;
-      }
-
-      const p = advance(store.electionProgress, delta, store.electionTimeMs);
-      store.setElectionProgress(p);
-
-      store.setDowntime(
-        store.detectionTimeMs + Math.round(p * store.electionTimeMs)
-      );
-
-      if (p >= 1) {
-        if (!soundPlayedRef.current.recovery) {
-          playRecoveryChimeSound();
-          soundPlayedRef.current.recovery = true;
-        }
-        store.onElectionComplete();
-        store.setPhase("elected");
-      }
-    }
-
-    if (store.phase === "recovering") {
-      const duration = latencyToDuration(store.recoveryTimeMs);
-      const p = Math.min(store.recoveryProgress + delta / duration, 1);
-      store.setRecoveryProgress(p);
-
-      const dp = Math.min(store.drainingProgress + delta / (duration * 1.2), 1);
-      store.setDrainingProgress(dp);
-
-      const totalDowntime =
-        store.detectionTimeMs +
-        store.electionTimeMs +
-        Math.round(p * store.recoveryTimeMs);
-      store.setDowntime(totalDowntime);
-
-      if (p >= 1 && dp >= 1) {
-        store.setPhase("complete");
-        store.addEvent({
-          time: totalDowntime,
-          label: "Leader region fully recovered",
-          type: "resume",
-        });
-      }
-    }
+    useFailoverStore.getState().tick(delta);
   });
 
   if (phase === "idle") return null;

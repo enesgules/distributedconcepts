@@ -1,54 +1,48 @@
 import { create } from "zustand";
+import {
+  EMPTY_TOPOLOGY,
+  prepareTopology,
+  transitionTopology,
+  type Topology,
+} from "@/lib/topology";
 
-interface DatabaseState {
-  primaryRegion: string | null;
-  readRegions: string[];
-  hoveredRegionId: string | null;
+interface DatabaseState extends Topology {
   setPrimary: (regionId: string) => void;
   addReadRegion: (regionId: string) => void;
   removeReadRegion: (regionId: string) => void;
   toggleRegion: (regionId: string) => void;
-  setHoveredRegion: (regionId: string | null) => void;
+  prepare: () => void;
+  restore: (topology: Topology) => void;
   reset: () => void;
 }
 
-export const useDatabaseStore = create<DatabaseState>((set, get) => ({
-  primaryRegion: null,
-  readRegions: [],
-  hoveredRegionId: null,
+export const useDatabaseStore = create<DatabaseState>((set) => ({
+  ...EMPTY_TOPOLOGY,
 
   setPrimary: (regionId) =>
-    set((state) => ({
-      primaryRegion: regionId,
-      readRegions: state.readRegions.filter((id) => id !== regionId),
-    })),
+    set((state) =>
+      transitionTopology(state, { kind: "set-primary", regionId })
+    ),
 
   addReadRegion: (regionId) =>
-    set((state) => {
-      if (regionId === state.primaryRegion) return state;
-      if (state.readRegions.includes(regionId)) return state;
-      return { readRegions: [...state.readRegions, regionId] };
-    }),
+    set((state) =>
+      transitionTopology(state, { kind: "add-replica", regionId })
+    ),
 
   removeReadRegion: (regionId) =>
-    set((state) => ({
-      readRegions: state.readRegions.filter((id) => id !== regionId),
-    })),
+    set((state) =>
+      transitionTopology(state, { kind: "remove-replica", regionId })
+    ),
 
-  toggleRegion: (regionId) => {
-    const state = get();
-    if (!state.primaryRegion) {
-      state.setPrimary(regionId);
-    } else if (regionId === state.primaryRegion) {
-      set({ primaryRegion: null, readRegions: [] });
-    } else if (state.readRegions.includes(regionId)) {
-      state.removeReadRegion(regionId);
-    } else {
-      state.addReadRegion(regionId);
-    }
-  },
+  toggleRegion: (regionId) =>
+    set((state) =>
+      transitionTopology(state, { kind: "toggle-region", regionId })
+    ),
 
-  setHoveredRegion: (regionId) => set({ hoveredRegionId: regionId }),
+  prepare: () => set((state) => prepareTopology(state)),
 
-  reset: () => set({ primaryRegion: null, readRegions: [], hoveredRegionId: null }),
+  restore: (topology) =>
+    set((state) => transitionTopology(state, { kind: "restore", topology })),
+
+  reset: () => set((state) => transitionTopology(state, { kind: "reset" })),
 }));

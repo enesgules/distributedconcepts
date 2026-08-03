@@ -6,7 +6,6 @@ import * as THREE from "three";
 import type { Region } from "@/lib/regions";
 import { latLonToVector3 } from "@/lib/geo-utils";
 import { GLOBE_RADIUS } from "./Globe";
-import { useDatabaseStore } from "@/lib/store/database-store";
 import RegionTooltip, { type NavigationHint } from "./RegionTooltip";
 
 interface RegionMarkerProps {
@@ -16,6 +15,7 @@ interface RegionMarkerProps {
   isSelected?: boolean;
   isPrimary?: boolean;
   isDimmed?: boolean;
+  panelHovered?: boolean;
   reducedMotion?: boolean;
   onClick?: (region: Region) => void;
   navigationHint?: NavigationHint;
@@ -33,6 +33,7 @@ export default function RegionMarker({
   isSelected = false,
   isPrimary = false,
   isDimmed = false,
+  panelHovered = false,
   reducedMotion = false,
   onClick,
   navigationHint,
@@ -43,8 +44,6 @@ export default function RegionMarker({
   const glowRef =
     useRef<THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>(null);
   const [hovered, setHovered] = useState(false);
-  const hoveredRegionId = useDatabaseStore((s) => s.hoveredRegionId);
-  const panelHovered = hoveredRegionId !== null && regions.some((r) => r.id === hoveredRegionId);
   const showTooltip = hovered || panelHovered || isHintActive;
 
   const position = useMemo(

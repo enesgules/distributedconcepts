@@ -1,21 +1,23 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useOnboardingStore } from "@/lib/store/onboarding-store";
-import { STEPS } from "@/lib/steps";
+import { useCurriculumProgressStore } from "@/lib/store/curriculum-progress-store";
+import { STEPS, type StepId } from "@/lib/steps";
 
 interface LearningPathNavProps {
-  activeStep?: number;
-  onStepChange?: (step: number) => void;
+  activeLessonId?: StepId;
+  onLessonChange?: (lessonId: StepId) => void;
   compact?: boolean;
 }
 
 export default function LearningPathNav({
-  activeStep = 0,
-  onStepChange,
+  activeLessonId = STEPS[0].id,
+  onLessonChange,
   compact = false,
 }: LearningPathNavProps) {
-  const completedStepIds = useOnboardingStore((s) => s.completedStepIds);
+  const completedLessonIds = useCurriculumProgressStore(
+    (state) => state.completedLessonIds
+  );
 
   return (
     <motion.div
@@ -30,10 +32,10 @@ export default function LearningPathNav({
     >
       <div className={`flex items-center ${compact ? "gap-0" : "gap-1"}`}>
         {STEPS.map((exp, i) => {
-          const isActive = i === activeStep;
-          const isClickable = !isActive && onStepChange !== undefined;
+          const isActive = exp.id === activeLessonId;
+          const isClickable = !isActive && onLessonChange !== undefined;
           const isCompleted =
-            completedStepIds.includes(exp.id) && !isActive;
+            completedLessonIds.includes(exp.id) && !isActive;
           const stateLabel = isActive
             ? "current"
             : isCompleted
@@ -126,7 +128,7 @@ export default function LearningPathNav({
             <div key={exp.id} className="flex items-center">
               <button
                 onClick={
-                  isClickable ? () => onStepChange?.(i) : undefined
+                  isClickable ? () => onLessonChange?.(exp.id) : undefined
                 }
                 aria-label={`Step ${i + 1}, ${exp.title}, ${stateLabel}`}
                 aria-current={isActive ? "step" : undefined}
