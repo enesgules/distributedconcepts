@@ -94,7 +94,7 @@ src/
 │       ├── CurriculumHome.tsx          : Chapter map and direct lesson entry
 │       └── ...                         : Lesson nav, sound, loading
 └── lib/
-    ├── regions.ts                      : 36 AWS and GCP regions
+    ├── regions.ts                      : 32 AWS and GCP regions
     ├── steps.ts                        : Full curriculum + interactive lesson registry
     ├── geo-utils.ts                    : Lat/lon to 3D coordinate math
     ├── arc-utils.ts                    : Arc geometry calculations

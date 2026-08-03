@@ -99,7 +99,7 @@ Current phase checkpoints:
 - Election promotes an in-region backup, so failover does not move the
   geographic write region.
 
-The 36 AWS and GCP regions are defined in `src/lib/regions.ts`. Keep provider
+The 32 AWS and GCP regions are defined in `src/lib/regions.ts`. Keep provider
 locking in the region builder because the simulation does not model
 cross-provider replication.
 
