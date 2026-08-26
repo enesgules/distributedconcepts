@@ -8,8 +8,6 @@ import { useDatabaseStore } from "./database-store";
 import { runSimulationEffects } from "./run-simulation-effects";
 
 export type {
-  FailoverEvent,
-  FailoverEventType,
   FailoverPhase,
   QueuedRequest,
 } from "@/lib/simulation/failover-simulation";

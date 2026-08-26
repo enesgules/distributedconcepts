@@ -1,6 +1,6 @@
 "use client";
 
-import { OPEN_CURRICULUM_EVENT } from "@/lib/curriculum-runtime";
+import { OPEN_COURSE_EVENT } from "@/lib/curriculum-runtime";
 import {
   Tooltip,
   TooltipContent,
@@ -14,9 +14,9 @@ export default function CurriculumButton() {
         render={
           <button
             onClick={() =>
-              window.dispatchEvent(new Event(OPEN_CURRICULUM_EVENT))
+              window.dispatchEvent(new Event(OPEN_COURSE_EVENT))
             }
-            aria-label="Open curriculum"
+            aria-label="Open course"
             className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[var(--surface-panel)] text-[var(--text-tertiary)] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,color,scale] duration-150 hover:bg-zinc-900 hover:text-zinc-200 active:scale-[0.96] md:h-10 md:w-10"
           >
             <svg
@@ -38,7 +38,7 @@ export default function CurriculumButton() {
           </button>
         }
       />
-      <TooltipContent side="bottom">Open curriculum</TooltipContent>
+      <TooltipContent side="bottom">Open course</TooltipContent>
     </Tooltip>
   );
 }

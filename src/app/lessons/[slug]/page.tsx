@@ -23,18 +23,18 @@ export async function generateMetadata({
 
   return {
     title: lesson.title,
-    description: lesson.description,
+    description: lesson.summary,
     alternates: { canonical: url },
     openGraph: {
       title: `${lesson.title} | ${SITE_NAME}`,
-      description: lesson.description,
+      description: lesson.summary,
       url,
       type: "article",
     },
     twitter: {
       card: "summary_large_image",
       title: `${lesson.title} | ${SITE_NAME}`,
-      description: lesson.description,
+      description: lesson.summary,
     },
   };
 }
@@ -47,10 +47,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
     "@context": "https://schema.org",
     "@type": "LearningResource",
     name: lesson.title,
-    description: lesson.description,
+    description: lesson.summary,
     url: `${SITE_URL}/lessons/${lesson.slug}`,
     learningResourceType: "Interactive lesson",
-    educationalLevel: "Intermediate",
+    educationalLevel: "Beginner",
     isPartOf: {
       "@type": "Course",
       name: SITE_NAME,

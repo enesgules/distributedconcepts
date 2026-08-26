@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   getAdjacentLessonId,
-  getRegionInteraction,
+  getTopologyRequirement,
   isLessonComplete,
-  lessonNeedsPreparedTopology,
   parseCurriculumLocation,
   type LessonCompletionFacts,
 } from "./curriculum-runtime";
@@ -12,45 +11,56 @@ const incompleteFacts: LessonCompletionFacts = {
   primaryRegion: null,
   readRegionCount: 0,
   writePhase: "idle",
-  readPhase: "idle",
   consistencyPhase: "idle",
   failoverPhase: "idle",
 };
 
 describe("curriculum runtime", () => {
-  it("resolves stable lesson identity from routes", () => {
+  it("resolves the four stable lesson routes", () => {
     expect(parseCurriculumLocation("/lessons/stale-read")).toEqual({
       kind: "lesson",
       lessonId: "stale-read",
     });
     expect(parseCurriculumLocation("/lessons")).toEqual({
       kind: "home",
-      curriculum: true,
+      course: true,
     });
   });
 
-  it("owns order and region interaction policy", () => {
-    expect(getAdjacentLessonId("write-path", "next")).toBe("replica-read");
-    expect(getAdjacentLessonId("distributed-service", "previous")).toBeNull();
-    expect(getRegionInteraction("replication")).toBe("toggle-replica");
-    expect(getRegionInteraction("recovery")).toBe("none");
-    expect(lessonNeedsPreparedTopology("stale-read")).toBe(true);
+  it("owns the simple course order and direct-entry requirements", () => {
+    expect(getAdjacentLessonId("build", "previous")).toBeNull();
+    expect(getAdjacentLessonId("build", "next")).toBe("write");
+    expect(getAdjacentLessonId("stale-read", "next")).toBe("failure");
+    expect(getTopologyRequirement("build")).toBe("none");
+    expect(getTopologyRequirement("failure")).toBe("leader-and-replica");
   });
 
-  it("derives completion once for persistence and navigation", () => {
+  it("does not finish the build until both copies exist", () => {
     expect(
-      isLessonComplete("replication", {
+      isLessonComplete("build", {
+        ...incompleteFacts,
+        primaryRegion: "us-east-1",
+      })
+    ).toBe(false);
+    expect(
+      isLessonComplete("build", {
         ...incompleteFacts,
         primaryRegion: "us-east-1",
         readRegionCount: 1,
       })
     ).toBe(true);
+  });
+
+  it("derives completion from each retained simulation", () => {
+    expect(
+      isLessonComplete("write", { ...incompleteFacts, writePhase: "complete" })
+    ).toBe(true);
     expect(
       isLessonComplete("stale-read", {
         ...incompleteFacts,
-        consistencyPhase: "result",
+        consistencyPhase: "complete",
       })
     ).toBe(true);
-    expect(isLessonComplete("recovery", incompleteFacts)).toBe(false);
+    expect(isLessonComplete("failure", incompleteFacts)).toBe(false);
   });
 });

@@ -18,20 +18,6 @@ export interface QueuedRequest {
   clientLon: number;
 }
 
-export type FailoverEventType =
-  | "failure"
-  | "detect"
-  | "election"
-  | "elected"
-  | "reconnect"
-  | "resume";
-
-export interface FailoverEvent {
-  time: number;
-  label: string;
-  type: FailoverEventType;
-}
-
 export interface FailoverSimulationState {
   phase: FailoverPhase;
   failedRegionId: string | null;
@@ -44,7 +30,6 @@ export interface FailoverSimulationState {
   drainingProgress: number;
   queuedRequests: QueuedRequest[];
   requestQueueVisible: boolean;
-  events: FailoverEvent[];
   downtimeMs: number;
   detectionTimeMs: number;
   electionTimeMs: number;
@@ -94,7 +79,6 @@ export function createFailoverSimulationState(): FailoverSimulationState {
     drainingProgress: 0,
     queuedRequests: [],
     requestQueueVisible: false,
-    events: [],
     downtimeMs: 0,
     detectionTimeMs: 800,
     electionTimeMs: 1200,
@@ -120,9 +104,6 @@ export function reduceFailoverSimulation(
           failedRegionId: primaryRegion,
           newPrimaryId: primaryRegion,
           queuedRequests,
-          events: [
-            { time: 0, label: "Leader node failed!", type: "failure" },
-          ],
           originalTopology: {
             primaryRegion,
             readRegions: [...readRegions],
@@ -135,14 +116,7 @@ export function reduceFailoverSimulation(
       if (state.phase !== "failure" || state.failureFlashProgress < 1) {
         return transition(state);
       }
-      return transition({
-        ...state,
-        phase: "detecting",
-        events: [
-          ...state.events,
-          { time: 0, label: "Health checks started", type: "detect" },
-        ],
-      });
+      return transition({ ...state, phase: "detecting" });
     case "start-election":
       if (state.phase !== "detecting" || state.detectionProgress < 1) {
         return transition(state);
@@ -151,41 +125,12 @@ export function reduceFailoverSimulation(
         {
           ...state,
           phase: "electing",
-          events: [
-            ...state.events,
-            {
-              time: state.detectionTimeMs,
-              label: "Failure confirmed by health checks",
-              type: "detect",
-            },
-            {
-              time: state.detectionTimeMs,
-              label: "Backup replica election started",
-              type: "election",
-            },
-          ],
         },
         [{ kind: "sound", sound: "election" }]
       );
     case "start-recovery":
       if (state.phase !== "elected") return transition(state);
-      return transition({
-        ...state,
-        phase: "recovering",
-        events: [
-          ...state.events,
-          {
-            time: state.detectionTimeMs + state.electionTimeMs,
-            label: "Replication connections re-establishing",
-            type: "reconnect",
-          },
-          {
-            time: state.detectionTimeMs + state.electionTimeMs,
-            label: "Queued writes draining to new leader",
-            type: "reconnect",
-          },
-        ],
-      });
+      return transition({ ...state, phase: "recovering" });
     case "tick": {
       if (state.phase === "failure") {
         const failureFlashProgress = Math.min(
@@ -203,21 +148,6 @@ export function reduceFailoverSimulation(
           failureFlashProgress,
           arcBreakProgress,
           requestQueueVisible: state.requestQueueVisible || revealQueue,
-          events: revealQueue
-            ? [
-                ...state.events,
-                {
-                  time: 0,
-                  label: `${state.queuedRequests.length} write requests queued`,
-                  type: "failure",
-                },
-                {
-                  time: 0,
-                  label: "Read replicas continue serving reads",
-                  type: "resume",
-                },
-              ]
-            : state.events,
         });
       }
       if (state.phase === "detecting") {
@@ -248,14 +178,6 @@ export function reduceFailoverSimulation(
                 phase: "elected",
                 electionProgress: 1,
                 downtimeMs,
-                events: [
-                  ...state.events,
-                  {
-                    time: downtimeMs,
-                    label: "Backup replica promoted to leader!",
-                    type: "elected",
-                  },
-                ],
               },
               [{ kind: "sound", sound: "recovery" }]
             )
@@ -282,16 +204,6 @@ export function reduceFailoverSimulation(
         recoveryProgress,
         drainingProgress,
         downtimeMs,
-        events: complete
-          ? [
-              ...state.events,
-              {
-                time: downtimeMs,
-                label: "Leader region fully recovered",
-                type: "resume",
-              },
-            ]
-          : state.events,
       });
     }
     case "reset":

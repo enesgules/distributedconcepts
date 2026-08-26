@@ -6,7 +6,6 @@ import {
   playRecoveryChimeSound,
   playReplicaArriveSound,
   playReplicateSound,
-  playResponseSound,
   playStaleSound,
 } from "@/lib/sounds";
 import type { SimulationEffect, SimulationSound } from "@/lib/simulation/effects";
@@ -16,7 +15,6 @@ const soundPlayers = {
   ack: playAckSound,
   replicate: playReplicateSound,
   "replica-arrive": playReplicaArriveSound,
-  response: playResponseSound,
   stale: playStaleSound,
   failure: playFailureAlarmSound,
   election: playElectionPulseSound,

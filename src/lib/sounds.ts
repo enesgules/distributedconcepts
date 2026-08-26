@@ -133,25 +133,6 @@ export function playReplicaArriveSound() {
   gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 }
 
-/** Two-tone chime — response data arrived back at client */
-export function playResponseSound() {
-  if (isMuted()) return;
-  const c = getCtx();
-
-  // First note (high)
-  const first = voice(c, "sine", 0, 0.15);
-  first.osc.frequency.setValueAtTime(660, first.t);
-  first.gain.gain.setValueAtTime(0.1, first.t);
-  first.gain.gain.exponentialRampToValueAtTime(0.001, first.t + 0.15);
-
-  // Second note (higher, slightly delayed)
-  const second = voice(c, "sine", 0.08, 0.25);
-  second.osc.frequency.setValueAtTime(880, second.t + 0.08);
-  second.gain.gain.setValueAtTime(0, second.t);
-  second.gain.gain.setValueAtTime(0.08, second.t + 0.08);
-  second.gain.gain.exponentialRampToValueAtTime(0.001, second.t + 0.25);
-}
-
 /** Descending tone — stale read detected */
 export function playStaleSound() {
   if (isMuted()) return;

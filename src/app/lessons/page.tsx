@@ -14,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function LessonsPage() {
-  return <DistributedConceptsApp initialView="curriculum" />;
+  return <DistributedConceptsApp initialView="course" />;
 }
