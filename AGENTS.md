@@ -110,7 +110,8 @@ and globe selection rejects invalid replicas.
 
 ## Interface and motion
 
-- Desktop uses one 390px left lesson panel and the globe.
+- Desktop keeps the globe centered under one bottom-centered lesson dock, up to
+  620px wide.
 - Mobile keeps the globe in the upper half and the lesson panel in the lower
   half.
 - Keep interactive targets at least 40px tall and preserve visible keyboard

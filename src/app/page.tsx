@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AnimatePresence, motion } from "framer-motion";
 import GlobeScene from "@/components/globe/GlobeScene";
 import ConnectionArcs from "@/components/globe/ConnectionArcs";
+import LatencyHeatmap from "@/components/globe/LatencyHeatmap";
 import WriteFlowVisualization from "@/components/globe/WriteFlowVisualization";
 import ConsistencyRaceVisualization from "@/components/globe/ConsistencyRaceVisualization";
 import FailoverVisualization from "@/components/globe/FailoverVisualization";
@@ -244,7 +245,12 @@ export function DistributedConceptsApp({
   const replicaRegionId = readRegions[0] ?? null;
   const lessonViews = {
     build: {
-      visual: <ConnectionArcs />,
+      visual: (
+        <>
+          <LatencyHeatmap />
+          <ConnectionArcs />
+        </>
+      ),
       panel: (
         <BuildPanel
           suggestedLeader={suggestedLeader}
@@ -288,7 +294,7 @@ export function DistributedConceptsApp({
     <div className="relative h-dvh w-screen overflow-hidden bg-[#0a0a0a]">
       <div
         className={`absolute inset-0 transition-transform duration-300 ease-[cubic-bezier(0.77,0,0.175,1)] ${
-          isHome ? "translate-x-0" : "-translate-y-[24vh] md:translate-x-[195px] md:translate-y-0"
+          isHome ? "translate-y-0" : "-translate-y-[24vh] md:translate-y-0"
         }`}
       >
         <GlobeScene
@@ -331,11 +337,11 @@ export function DistributedConceptsApp({
         {activeLessonId && view ? (
           <motion.main
             key={activeLessonId}
-            initial={{ opacity: 0, transform: isMobile ? "translateY(28px)" : "translateX(-28px)" }}
-            animate={{ opacity: 1, transform: isMobile ? "translateY(0px)" : "translateX(0px)" }}
-            exit={{ opacity: 0, transform: isMobile ? "translateY(18px)" : "translateX(-18px)" }}
+            initial={{ opacity: 0, transform: "translateY(28px)" }}
+            animate={{ opacity: 1, transform: "translateY(0px)" }}
+            exit={{ opacity: 0, transform: "translateY(18px)" }}
             transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed bottom-0 left-0 right-0 z-20 h-[54dvh] rounded-t-[1.75rem] p-2 pb-safe md:absolute md:bottom-4 md:left-4 md:right-auto md:top-4 md:h-auto md:w-[390px] md:rounded-none md:p-0"
+            className="fixed bottom-0 left-0 right-0 z-20 h-[54dvh] rounded-t-[1.75rem] p-2 pb-safe md:absolute md:bottom-6 md:mx-auto md:h-auto md:max-h-[calc(100dvh-3rem)] md:w-[min(620px,calc(100vw-3rem))] md:rounded-none md:p-0"
           >
             {view.panel}
           </motion.main>

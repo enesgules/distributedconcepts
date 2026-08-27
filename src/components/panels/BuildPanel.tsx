@@ -84,12 +84,14 @@ export default function BuildPanel({
           title="Add a copy near readers"
         >
           <PathStrip items={[primary.city, "network", "copy"]} activeIndex={1} />
+          <LatencyLegend />
         </Stage>
       ) : (
         <Stage
           title={`${primary.city} writes. ${replica.city} reads.`}
         >
           <PathStrip items={[primary.city, "copy", replica.city]} activeIndex={2} />
+          <LatencyLegend />
         </Stage>
       )}
 
@@ -101,5 +103,23 @@ export default function BuildPanel({
         </ResultCard>
       ) : null}
     </CoursePanel>
+  );
+}
+
+function LatencyLegend() {
+  return (
+    <div
+      className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]"
+      aria-label="Map colors show read latency from fast to slow"
+    >
+      <span>Read latency</span>
+      <span className="flex items-center gap-2" aria-hidden="true">
+        <span className="size-1.5 rounded-full bg-emerald-400" />
+        Fast
+        <span className="h-px w-5 bg-linear-to-r from-emerald-400 via-amber-400 to-red-400" />
+        Slow
+        <span className="size-1.5 rounded-full bg-red-400" />
+      </span>
+    </div>
   );
 }
