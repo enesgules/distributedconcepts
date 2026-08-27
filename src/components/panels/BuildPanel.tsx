@@ -59,29 +59,46 @@ export default function BuildPanel({
     useDatabaseStore.getState().addReadRegion(recommendedReplica.id);
   };
 
+  const chooseAnotherReplica = () => {
+    if (!replica) return;
+    playRegionToggleSound(true, true);
+    useDatabaseStore.getState().removeReadRegion(replica.id);
+  };
+
   const footer = !primary ? (
-    <ActionButton onClick={placeLeader} disabled={!suggestedLeader}>
-      {suggestedLeader ? `Place leader in ${suggestedLeader.city}` : "Finding a nearby region…"}
-    </ActionButton>
+    <RegionChoice
+      prompt="Pick any region"
+      shortcut={suggestedLeader ? `Use ${suggestedLeader.city}` : "Finding nearby…"}
+      onShortcut={placeLeader}
+      disabled={!suggestedLeader}
+    />
   ) : !replica ? (
-    <ActionButton onClick={addReplica} disabled={!recommendedReplica}>
-      {recommendedReplica ? `Add a copy in ${recommendedReplica.city}` : "Choose a copy"}
-    </ActionButton>
+    <RegionChoice
+      prompt="Pick another region"
+      shortcut={recommendedReplica ? `Use ${recommendedReplica.city}` : "Finding a copy…"}
+      onShortcut={addReplica}
+      disabled={!recommendedReplica}
+    />
   ) : (
-    <ActionButton onClick={onNext}>Follow one write</ActionButton>
+    <div className="grid grid-cols-2 gap-2">
+      <ActionButton tone="secondary" onClick={chooseAnotherReplica}>
+        Try another copy
+      </ActionButton>
+      <ActionButton onClick={onNext}>Follow one write</ActionButton>
+    </div>
   );
 
   return (
     <CoursePanel lessonId="build" footer={footer}>
       {!primary ? (
         <Stage
-          title="Choose where writes start"
+          title="Pick where writes start"
         >
           <PathStrip items={["client", "leader"]} activeIndex={0} />
         </Stage>
       ) : !replica ? (
         <Stage
-          title="Add a copy near readers"
+          title="Pick a second region"
         >
           <PathStrip items={[primary.city, "network", "copy"]} activeIndex={1} />
           <LatencyLegend />
@@ -103,6 +120,33 @@ export default function BuildPanel({
         </ResultCard>
       ) : null}
     </CoursePanel>
+  );
+}
+
+function RegionChoice({
+  prompt,
+  shortcut,
+  onShortcut,
+  disabled,
+}: {
+  prompt: string;
+  shortcut: string;
+  onShortcut: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+      <p className="flex min-h-11 items-center gap-2 pl-7 text-sm font-medium text-zinc-200 md:pl-1">
+        <span
+          className="size-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.65)]"
+          aria-hidden="true"
+        />
+        {prompt}
+      </p>
+      <ActionButton tone="secondary" onClick={onShortcut} disabled={disabled}>
+        {shortcut}
+      </ActionButton>
+    </div>
   );
 }
 
