@@ -75,25 +75,19 @@ export default function BuildPanel({
     <CoursePanel lessonId="build" footer={footer}>
       {!primary ? (
         <Stage
-          label="First, choose one machine"
-          title="The leader stores every write"
-          detail="Start near your first users."
+          title="Choose where writes start"
         >
           <PathStrip items={["client", "leader"]} activeIndex={0} />
         </Stage>
       ) : !replica ? (
         <Stage
-          label={`${primary.city} is the leader`}
-          title="One copy is far from most readers"
-          detail="Add one replica on the other side of the world. It can answer nearby reads."
+          title="Add a copy near readers"
         >
           <PathStrip items={[primary.city, "network", "copy"]} activeIndex={1} />
         </Stage>
       ) : (
         <Stage
-          label="System ready"
           title={`${primary.city} writes. ${replica.city} reads.`}
-          detail="Both machines store the same data. The leader remains the only place that accepts writes."
         >
           <PathStrip items={[primary.city, "copy", replica.city]} activeIndex={2} />
         </Stage>
@@ -101,8 +95,9 @@ export default function BuildPanel({
 
       {primary && replica && beforeLatency !== null && afterLatency !== null ? (
         <ResultCard>
-          Average read latency falls from <strong className="font-mono text-zinc-50">{beforeLatency}ms</strong> to{" "}
-          <strong className="font-mono text-emerald-300">{afterLatency}ms</strong>. The tradeoff is that the copy needs time to catch up.
+          Read latency: <strong className="font-mono text-zinc-50">{beforeLatency}ms</strong>
+          <span className="px-2 text-zinc-500">→</span>
+          <strong className="font-mono text-emerald-300">{afterLatency}ms</strong>
         </ResultCard>
       ) : null}
     </CoursePanel>

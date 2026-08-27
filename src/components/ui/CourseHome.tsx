@@ -32,9 +32,6 @@ export default function CourseHome({
         <h1 className="text-sm font-semibold tracking-[-0.01em] text-zinc-100 md:text-base">
           Distributed Concepts
         </h1>
-        <p className="mt-1 hidden font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--text-tertiary)] md:block">
-          Learn by changing the system
-        </p>
       </motion.header>
 
       <motion.section
@@ -48,7 +45,7 @@ export default function CourseHome({
       >
         <div className="p-5 sm:p-6">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-            {expanded ? "Your course" : "Four short experiments"}
+            {expanded ? "Course" : "4 experiments"}
           </p>
           <h2
             className={`text-balance font-semibold text-zinc-50 ${
@@ -57,13 +54,8 @@ export default function CourseHome({
                 : "mt-3 text-[2rem] leading-[1.02] tracking-[-0.045em] sm:text-[2.55rem]"
             }`}
           >
-            {expanded ? "Choose an experiment" : "See why distributed systems get hard."}
+            {expanded ? "Choose a lesson" : "Build it. Then break it."}
           </h2>
-          {!expanded ? (
-            <p className="mt-3 max-w-md text-pretty text-sm leading-6 text-zinc-400">
-              Build one global service. Send a write, race a copy, then recover from failure on the globe.
-            </p>
-          ) : null}
 
           {expanded ? (
             <div className="mt-5 space-y-2" aria-label="Course experiments">
@@ -77,14 +69,13 @@ export default function CourseHome({
                       event.preventDefault();
                       onSelectLesson(step.id);
                     }}
-                    className="group flex min-h-[68px] items-center gap-3 rounded-2xl bg-white/[0.035] px-3.5 py-3 shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,scale] duration-150 hover:bg-white/[0.07] active:scale-[0.98]"
+                    className="group flex min-h-14 items-center gap-3 rounded-2xl bg-white/[0.035] px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,scale] duration-150 hover:bg-white/[0.07] active:scale-[0.98]"
                   >
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] ${complete ? "bg-emerald-300 text-zinc-950" : "bg-white/[0.055] text-zinc-400"}`}>
                       {complete ? "✓" : index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-zinc-200">{step.title}</span>
-                      <span className="mt-0.5 block text-xs leading-5 text-[var(--text-tertiary)]">{step.summary}</span>
                     </span>
                     <span className="text-zinc-600 transition-colors group-hover:text-emerald-300" aria-hidden="true">→</span>
                   </Link>
@@ -93,7 +84,7 @@ export default function CourseHome({
             </div>
           ) : null}
 
-          {!expanded ? <div className="mt-5 flex flex-wrap gap-2">
+          {!expanded ? <div className="mt-6 flex flex-wrap gap-2">
             <Link
               href="/lessons/build"
               onClick={(event) => {
@@ -102,14 +93,14 @@ export default function CourseHome({
               }}
               className="flex min-h-11 items-center rounded-2xl bg-emerald-300 px-4 text-sm font-semibold text-zinc-950 transition-[background-color,scale] duration-150 hover:bg-emerald-200 active:scale-[0.96]"
             >
-              Start course <span className="ml-2 opacity-60" aria-hidden="true">→</span>
+              Start <span className="ml-2 opacity-60" aria-hidden="true">→</span>
             </Link>
             <button
               type="button"
               onClick={onExpand}
               className="min-h-11 rounded-2xl bg-white/[0.055] px-4 text-sm font-medium text-zinc-200 shadow-[inset_0_0_0_1px_var(--line-subtle)] transition-[background-color,scale] duration-150 hover:bg-white/[0.09] active:scale-[0.96]"
             >
-              Explore 4 experiments
+              View course
             </button>
           </div> : null}
         </div>

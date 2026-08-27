@@ -21,7 +21,7 @@ import { useFailoverStore } from "@/lib/store/failover-store";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { getRegionById, regions, type Region } from "@/lib/regions";
 import { findNearestRegion } from "@/lib/simulation/latency";
-import { STEPS, getStepIndexById, type StepId } from "@/lib/steps";
+import type { StepId } from "@/lib/steps";
 import {
   getAdjacentLessonId,
   getLessonUrl,
@@ -57,7 +57,6 @@ export function DistributedConceptsApp({
   const [isMobile, setIsMobile] = useState(false);
   const previousLessonId = useRef<StepId | null>(initialLessonId);
   const isHome = activeLessonId === null;
-  const activeStep = activeLessonId ? getStepIndexById(activeLessonId) : -1;
   const isLoaded = minTimeElapsed && globeReady;
 
   const navigateToLesson = useCallback((lessonId: StepId) => {
@@ -342,13 +341,6 @@ export function DistributedConceptsApp({
           </motion.main>
         ) : null}
       </AnimatePresence>
-
-      {activeLessonId ? (
-        <div className="fixed left-1/2 top-4 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--surface-panel)] px-3 py-2 text-xs text-zinc-400 shadow-[0_0_0_1px_var(--line-subtle)] backdrop-blur-xl md:flex">
-          <span className="font-mono text-[10px] text-emerald-300">{activeStep + 1}/{STEPS.length}</span>
-          <span>{STEPS[activeStep].shortTitle}</span>
-        </div>
-      ) : null}
 
       <AnimatePresence>{!isLoaded ? <LoadingScreen /> : null}</AnimatePresence>
     </div>

@@ -59,7 +59,7 @@ export default function WriteLessonPanel({ onNext }: { onNext: () => void }) {
       <div className="space-y-2">
         <ActionButton onClick={onNext}>Race the copy</ActionButton>
         <ActionButton tone="secondary" onClick={() => useWriteFlowStore.getState().reset()}>
-          Replay the write
+          Replay
         </ActionButton>
       </div>
     ) : (
@@ -71,30 +71,23 @@ export default function WriteLessonPanel({ onNext }: { onNext: () => void }) {
   return (
     <CoursePanel lessonId="write" footer={footer}>
       <Stage
-        label={
-          phase === "idle"
-            ? "Ready to write"
-            : phase === "primary-ack"
-              ? "Leader committed the value"
-              : phase === "complete"
-                ? "Both copies now agree"
-                : isSending
-                  ? "Request in flight"
-                  : "Replica catching up"
-        }
         title={
           phase === "primary-ack"
-            ? `${primary?.city ?? "The leader"} replied OK`
+            ? `${primary?.city ?? "Leader"} returned OK`
             : phase === "complete"
-              ? `${replica?.city ?? "The replica"} now has score = 1`
-              : "Writes always go to the leader"
+              ? "Both copies have score = 1"
+              : isSending
+                ? `Sending to ${primary?.city ?? "the leader"}`
+                : phase === "replicating"
+                  ? `Copying to ${replica?.city ?? "the replica"}`
+                  : `Send score = 1 to ${primary?.city ?? "the leader"}`
         }
         detail={
           phase === "primary-ack"
-            ? "The client can continue now. The remote copy still has the old value."
-            : phase === "complete"
-              ? "The write finished for the client first. Replication finished later."
-              : "The leader stores the value and confirms it. Only then does it copy the value to replicas."
+            ? `${replica?.city ?? "The copy"} still has the old value.`
+            : phase === "idle"
+              ? "Only the leader accepts writes."
+              : undefined
         }
       >
         <PathStrip items={["client", "leader", "copy"]} activeIndex={activeIndex} />
@@ -102,8 +95,9 @@ export default function WriteLessonPanel({ onNext }: { onNext: () => void }) {
 
       {phase === "complete" ? (
         <ResultCard>
-          The client waited <strong className="font-mono text-cyan-300">{primaryLatencyMs}ms</strong> for OK. The remote copy needed another{" "}
-          <strong className="font-mono text-emerald-300">{replicationLatency}ms</strong>.
+          OK <strong className="font-mono text-cyan-300">{primaryLatencyMs}ms</strong>
+          <span className="px-2 text-zinc-500">·</span>
+          copy +<strong className="font-mono text-emerald-300">{replicationLatency}ms</strong>
         </ResultCard>
       ) : null}
     </CoursePanel>

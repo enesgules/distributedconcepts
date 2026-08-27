@@ -20,7 +20,7 @@ export function CoursePanel({
       <header className="shrink-0 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-300">
-            Experiment {lessonNumber} of {STEPS.length}
+            {lessonNumber} / {STEPS.length}
           </p>
           <div className="flex gap-1" aria-label={`Experiment ${lessonNumber} of ${STEPS.length}`}>
             {STEPS.map((step, index) => (
@@ -36,9 +36,6 @@ export function CoursePanel({
         <h1 className="mt-3 text-balance text-2xl font-semibold leading-[1.08] tracking-[-0.03em] text-zinc-50">
           {lesson.title}
         </h1>
-        <p className="mt-2 text-pretty text-sm leading-6 text-[var(--text-secondary)]">
-          {lesson.question}
-        </p>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6">
@@ -83,14 +80,12 @@ export function ActionButton({
 }
 
 export function Stage({
-  label,
   title,
   detail,
   children,
 }: {
-  label: string;
   title: string;
-  detail: string;
+  detail?: string;
   children?: ReactNode;
 }) {
   return (
@@ -100,15 +95,14 @@ export function Stage({
       aria-atomic="true"
       className="rounded-2xl bg-[var(--surface-inset)] p-4 shadow-[inset_0_0_0_1px_var(--line-subtle)]"
     >
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
-        {label}
-      </p>
-      <h2 className="mt-2 text-base font-semibold tracking-[-0.01em] text-zinc-100">
+      <h2 className="text-base font-semibold tracking-[-0.01em] text-zinc-100">
         {title}
       </h2>
-      <p className="mt-1.5 text-pretty text-sm leading-6 text-[var(--text-secondary)]">
-        {detail}
-      </p>
+      {detail ? (
+        <p className="mt-1.5 text-pretty text-sm leading-6 text-[var(--text-secondary)]">
+          {detail}
+        </p>
+      ) : null}
       {children}
     </div>
   );

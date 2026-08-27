@@ -4,8 +4,6 @@ export interface Step {
   id: StepId;
   slug: StepId;
   title: string;
-  shortTitle: string;
-  question: string;
   summary: string;
 }
 
@@ -14,33 +12,25 @@ export const STEPS = [
     id: "build",
     slug: "build",
     title: "Build two copies",
-    shortTitle: "Build",
-    question: "Why put data in more than one place?",
-    summary: "Place one leader, then add a copy near distant readers.",
+    summary: "Place a leader and a read copy.",
   },
   {
     id: "write",
     slug: "write",
     title: "Follow one write",
-    shortTitle: "Write",
-    question: "When is a write really done?",
-    summary: "Watch the leader confirm a write before the other copy catches up.",
+    summary: "See why a write finishes before its copy.",
   },
   {
     id: "stale-read",
     slug: "stale-read",
     title: "Race the copy",
-    shortTitle: "Stale data",
-    question: "Can two copies disagree?",
-    summary: "Read immediately or wait, then see which value the replica returns.",
+    summary: "Race a read against replication.",
   },
   {
     id: "failure",
     slug: "failure",
     title: "Break the leader",
-    shortTitle: "Failure",
-    question: "What happens when the leader fails?",
-    summary: "Pause writes, choose a standby, and bring the system back.",
+    summary: "Replace a failed leader.",
   },
 ] as const satisfies readonly Step[];
 

@@ -7,7 +7,6 @@ import {
   ActionButton,
   CoursePanel,
   PathStrip,
-  ResultCard,
   Stage,
 } from "./CoursePanel";
 
@@ -26,11 +25,6 @@ export default function FailureLessonPanel({
 
   const failureReady = phase === "failure" && failureFlashProgress >= 1;
   const detectionReady = phase === "detecting" && detectionProgress >= 1;
-  const busy =
-    (phase === "failure" && !failureReady) ||
-    (phase === "detecting" && !detectionReady) ||
-    phase === "electing" ||
-    phase === "recovering";
   const activeIndex =
     phase === "idle" || (phase === "failure" && !failureReady)
       ? 0
@@ -51,21 +45,21 @@ export default function FailureLessonPanel({
       </ActionButton>
     ) : failureReady ? (
       <ActionButton onClick={() => useFailoverStore.getState().startDetection()}>
-        Confirm the failure
+        Confirm failure
       </ActionButton>
     ) : detectionReady ? (
       <ActionButton onClick={() => useFailoverStore.getState().startElection()}>
-        Choose the standby
+        Promote standby
       </ActionButton>
     ) : phase === "elected" ? (
       <ActionButton onClick={() => useFailoverStore.getState().startRecovery()}>
-        Resume queued writes
+        Resume writes
       </ActionButton>
     ) : phase === "complete" ? (
       <div className="space-y-2">
-        <ActionButton onClick={onFinish}>View the course</ActionButton>
+        <ActionButton onClick={onFinish}>View course</ActionButton>
         <ActionButton tone="secondary" onClick={() => useFailoverStore.getState().replay()}>
-          Replay the failure
+          Replay
         </ActionButton>
       </div>
     ) : (
@@ -82,49 +76,42 @@ export default function FailureLessonPanel({
 
   const title =
     phase === "idle"
-      ? `${primary?.city ?? "The leader"} has an in-region standby`
+      ? `${primary?.city ?? "Leader"} has a standby`
       : phase === "failure"
         ? "Writes stop. Reads continue."
         : phase === "detecting"
-          ? "A timeout is not proof of failure"
+          ? "Checking the failure"
           : phase === "electing"
-            ? "The standby takes over"
+            ? "Promoting the standby"
             : phase === "elected"
-              ? "A new leader is ready"
+              ? "New leader ready"
               : phase === "complete"
-                ? "The system recovered"
-                : "Queued writes are moving again";
+                ? `Recovered in ${downtimeMs}ms`
+                : "Resuming writes";
 
   const detail =
     phase === "idle"
-      ? "The standby is a second machine in the leader region. It stays ready without changing where writes live."
+      ? "Same region. Different machine."
       : phase === "failure"
-        ? "Read replicas can still answer. New writes wait because no leader can order them."
+        ? undefined
         : phase === "detecting"
-          ? "Health checks wait long enough to separate a real outage from a slow network."
+          ? "One timeout is not enough."
           : phase === "electing"
-            ? "The in-region standby becomes leader, so the write region does not move."
+            ? undefined
             : phase === "elected"
-              ? "Replicas and waiting clients still need to reconnect."
+              ? "Clients must reconnect."
               : phase === "complete"
-                ? "Reads stayed available. Writes paused, queued, and resumed in order."
-                : "Replicas reconnect while queued writes drain to the new leader.";
+                ? "Reads stayed online."
+                : undefined;
 
   return (
     <CoursePanel lessonId="failure" footer={footer}>
       <Stage
-        label={phase === "complete" ? "Course complete" : busy ? "System changing" : "Your next decision"}
         title={title}
         detail={detail}
       >
         <PathStrip items={["fail", "confirm", "standby", "resume"]} activeIndex={activeIndex} />
       </Stage>
-
-      {phase === "complete" ? (
-        <ResultCard>
-          Writes were unavailable for <strong className="font-mono text-emerald-300">{downtimeMs}ms</strong>. Replicas kept serving reads during the outage.
-        </ResultCard>
-      ) : null}
     </CoursePanel>
   );
 }

@@ -82,7 +82,7 @@ export default function RaceLessonPanel({ onNext }: { onNext: () => void }) {
       <div className="space-y-2">
         <ActionButton onClick={onNext}>Break the leader</ActionButton>
         <ActionButton tone="secondary" onClick={() => useConsistencyRaceStore.getState().reset()}>
-          Try the other timing
+          Try other timing
         </ActionButton>
       </div>
     ) : (
@@ -94,34 +94,27 @@ export default function RaceLessonPanel({ onNext }: { onNext: () => void }) {
   return (
     <CoursePanel lessonId="stale-read" footer={footer}>
       <Stage
-        label={
-          phase === "idle"
-            ? `${primary?.city ?? "Leader"}: v1 · ${replica?.city ?? "Replica"}: v1`
-            : phase === "write-ack"
-              ? `${primary?.city ?? "Leader"}: v2 · ${replica?.city ?? "Replica"}: v1`
-              : phase === "complete"
-                ? `${replica?.city ?? "Replica"} returned ${isStale ? "v1" : "v2"}`
-                : isBusy
-                  ? "Packets in flight"
-                  : "Race complete"
-        }
         title={
           phase === "write-ack"
-            ? "The copies disagree right now"
+            ? "Copies disagree"
             : phase === "complete"
               ? isStale
-                ? "The read found the old value"
-                : "The copy arrived first"
-              : "Update the leader, then read the replica"
+                ? "Old value returned"
+                : "New value returned"
+              : isBusy
+                ? "Packets in flight"
+                : "Write, then read the copy"
         }
         detail={
           phase === "write-ack"
-            ? "Choose when to read. The globe will reveal which packet reaches the replica first."
+            ? `${primary?.city ?? "Leader"}: 2 · ${replica?.city ?? "Copy"}: 1`
             : phase === "complete"
               ? isStale
-                ? "Your read reached the replica before the update. This brief gap is eventual consistency."
-                : "You waited long enough for replication, so the replica returned the latest value."
-              : "A nearby replica is fast, but it may not have the newest write yet."
+                ? "The read arrived first."
+                : "Replication arrived first."
+              : phase === "idle"
+                ? `${primary?.city ?? "Leader"}: 1 · ${replica?.city ?? "Copy"}: 1`
+                : undefined
         }
       >
         <PathStrip items={["write v2", "leader", "race", "result"]} activeIndex={activeIndex} />
@@ -129,8 +122,8 @@ export default function RaceLessonPanel({ onNext }: { onNext: () => void }) {
 
       {phase === "complete" && isStale !== null ? (
         <ResultCard>
-          {isStale ? "The read" : "The update"} won by{" "}
-          <strong className="font-mono text-emerald-300">{margin}ms</strong>. Timing, not distance alone, decided the answer.
+          {isStale ? "Read" : "Copy"} won by{" "}
+          <strong className="font-mono text-emerald-300">{margin}ms</strong>
         </ResultCard>
       ) : null}
     </CoursePanel>
