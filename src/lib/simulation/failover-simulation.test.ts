@@ -56,6 +56,6 @@ describe("failover lesson simulation", () => {
       deltaSeconds: 5,
     }).state;
     expect(state.phase).toBe("complete");
-    expect(state.events.at(-1)?.label).toBe("Leader region fully recovered");
+    expect(state.downtimeMs).toBeGreaterThan(0);
   });
 });

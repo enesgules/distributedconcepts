@@ -98,7 +98,7 @@ export function reduceConsistencySimulation(
         clientLocation: action.location,
       });
     case "set-read-delay":
-      return state.phase === "idle"
+      return state.phase === "idle" || state.phase === "write-ack"
         ? transition({ ...state, readDelay: Math.max(0, action.readDelayMs) })
         : transition(state);
     case "start":
@@ -190,7 +190,7 @@ export function reduceConsistencySimulation(
         readProgress,
       };
 
-      return replicationProgress >= 1 || readProgress >= 1
+      return readProgress >= 1
         ? resolveRace(nextState, effects)
         : transition(nextState, effects);
     }

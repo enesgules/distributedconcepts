@@ -1,9 +1,9 @@
 # Distributed Concepts
 
-> An interactive 3D guide to distributed database concepts.
+> Four short distributed systems experiments on a live 3D globe.
 
-Distributed Concepts explains database regions, replication, write and read
-flows, eventual consistency, and failover through a guided globe simulation.
+Distributed Concepts lets learners build two copies, follow one write, race a
+replica, and recover from leader failure. Each screen has one clear next action.
 
 ## Main page
 

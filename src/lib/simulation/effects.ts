@@ -3,7 +3,6 @@ export type SimulationSound =
   | "ack"
   | "replicate"
   | "replica-arrive"
-  | "response"
   | "stale"
   | "failure"
   | "election"

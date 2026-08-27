@@ -1,8 +1,8 @@
 # Distributed Concepts
 
-Interactive 3D curriculum for distributed systems. Learners can follow the
-course from the beginning or jump from the homepage to an available lesson,
-then advance each simulation one system action at a time.
+Short interactive course for distributed systems. Learners build one global
+service through four experiments. Each screen shows one system change and one
+clear next action.
 
 ## Stack
 
@@ -27,7 +27,7 @@ deploy to the production Vercel project at `distributedconcepts.com`.
 
 ## Application architecture
 
-`src/app/page.tsx` owns the quiet home, curriculum view, responsive layout, and
+`src/app/page.tsx` owns the quiet home, course view, responsive layout, and
 globe composition. `src/lib/curriculum-runtime.ts` owns stable lesson identity,
 order, readable lesson URLs, direct-entry preparation, and completion rules.
 The globe stays mounted while the homepage, lesson panels, and visualizations
@@ -35,7 +35,7 @@ change. Route files under `src/app/lessons` supply indexable metadata and
 static paths for the shared client experience.
 
 Lesson navigation writes `/lessons/<slug>` with the History API. Browser Back,
-browser Forward, Escape, and the curriculum button must restore the matching
+browser Forward, Escape, and the course button must restore the matching
 view without reloading the globe.
 
 Each simulation uses four pieces:
@@ -51,45 +51,34 @@ Do not put the full simulation on one timer chain. A visual phase may animate
 to its checkpoint, but the next meaningful system action should wait for the
 learner. Keep phase transitions in the store when they represent a user action.
 
-`LessonSequence` in `src/components/panels/FlowPanel.tsx` is the shared action
-rail. Use it for the current action, its explanation, and completed actions.
+`CoursePanel`, `Stage`, `PathStrip`, and `ResultCard` in
+`src/components/panels/CoursePanel.tsx` are the shared lesson parts. Keep one
+primary action visible at a time. Use a second action only for replay or a real
+two-way choice.
 
 ## Curriculum
 
 The lesson registry lives in `src/lib/steps.ts`.
 
-| Interactive lesson | Concept | Interaction |
+| Experiment | Concept | Interaction |
 | --- | --- | --- |
-| Build a Distributed Service | Nodes accept client work through network messages | Choose the write node |
-| Replicate the Data | Nearby copies reduce read latency | Add a replica and compare coverage |
-| Follow a Write | Acknowledgment precedes remote replication | Send → commit → replicate |
-| Read from a Replica | Reads use the nearest available copy | Route → fetch → return |
-| Observe a Stale Read | A read can beat replication | Commit → open window → race → inspect |
-| Recover from Failure | Writes pause while a replacement is chosen | Fail → detect → elect → resume |
+| Build two copies | One leader accepts writes and one replica serves nearby reads | Place the leader, then add the replica |
+| Follow one write | The leader acknowledges before remote replication ends | Send, then start replication |
+| Race the copy | A replica can return an old value during the replication gap | Write, then read now or wait |
+| Break the leader | Reads continue while writes pause for an in-region election | Fail, confirm, elect, then resume |
 
-The full curriculum is grouped into four chapters in `src/lib/steps.ts`:
-
-1. Distribution changes the rules
-2. Copies disagree
-3. Agree through failure
-4. Distribute the workload
-
-Use the `interactive` and `planned` lesson variants to keep future classes
-visible without making them clickable.
-
-The opening lesson has a deliberate checkpoint after node placement. It must
-explain the client request, network message, and node-local state change before
-the learner advances to replication.
+Do not add chapters, planned lesson cards, or a full region catalog. New course
+material must first work as one short experiment with a visible result on the
+globe.
 
 Current phase checkpoints:
 
 - Write: `idle` → `to-primary` → `primary-ack` → `replicating` → `complete`
-- Read: `idle` → `fetching` → `arriving` → `responding` → `complete`
 - Consistency: `idle` → `writing` → `write-ack` → `racing` → `result` → `complete`
 - Recovery: `idle` → `failure` → `detecting` → `electing` → `elected` → `recovering` → `complete`
 
-`primary-ack`, `arriving`, `write-ack`, completed `failure`, completed
-`detecting`, and `elected` are deliberate teaching pauses.
+`primary-ack`, `write-ack`, completed `failure`, completed `detecting`, and
+`elected` are deliberate teaching pauses.
 
 ## Distributed database model
 
@@ -105,8 +94,8 @@ Current phase checkpoints:
 
 The 32 AWS and GCP regions are defined in `src/lib/regions.ts`.
 `src/lib/topology.ts` enforces provider locking because the simulation does not
-model cross-provider replication. The region builder also filters choices so
-the learner does not see invalid replicas.
+model cross-provider replication. The build experiment suggests valid regions,
+and globe selection rejects invalid replicas.
 
 ## Globe conventions
 
@@ -121,15 +110,15 @@ the learner does not see invalid replicas.
 
 ## Interface and motion
 
-- Desktop uses a 380px left lesson panel, globe, optional right evidence panel,
-  and bottom curriculum navigation.
+- Desktop keeps the globe centered under one bottom-centered lesson dock, up to
+  620px wide.
 - Mobile keeps the globe in the upper half and the lesson panel in the lower
   half.
 - Keep interactive targets at least 40px tall and preserve visible keyboard
   focus.
 - Use tabular numerals for changing latency and progress values.
 - Explain motion at every teaching checkpoint. Motion must show cause, state,
-  or feedback.
+  or feedback. Do not add a second evidence panel or a dense event timeline.
 - Keep explanatory animations fully enabled. Do not add reduced-motion
   branches unless the product direction changes.
 - Use transitions for interruptible controls and `useFrame` for simulated
@@ -154,7 +143,7 @@ action taken while that lesson is active can award its completion.
 
 - Keep changes scoped to the requested lesson or interaction.
 - Preserve unrelated worktree changes.
-- Update `src/lib/steps.ts`, the curriculum homepage, README curriculum, and
+- Update `src/lib/steps.ts`, the course homepage, README course list, and
   this guide when lesson names or order change.
 - Update the panel, store, and visualization together when a phase changes.
 - Do not describe an automatic transition as learner-controlled unless the

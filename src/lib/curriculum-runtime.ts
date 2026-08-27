@@ -1,46 +1,23 @@
 import type { ConsistencyPhase } from "./simulation/consistency-simulation";
 import type { FailoverPhase } from "./simulation/failover-simulation";
-import type { ReadPhase } from "./simulation/read-simulation";
 import type { WritePhase } from "./simulation/write-simulation";
-import {
-  STEPS,
-  getStepIndexById,
-  type Step,
-  type StepId,
-} from "./steps";
+import { STEPS, getStepIndexById, type Step, type StepId } from "./steps";
 
-export const OPEN_CURRICULUM_EVENT =
-  "distributed-concepts:open-curriculum";
+export const OPEN_COURSE_EVENT = "distributed-concepts:open-course";
 
 export type CurriculumLocation =
-  | { kind: "home"; curriculum: boolean }
+  | { kind: "home"; course: boolean }
   | { kind: "lesson"; lessonId: StepId };
 
-export type RegionInteraction =
-  | "choose-primary"
-  | "toggle-replica"
-  | "place-client"
-  | "none";
+export type TopologyRequirement = "none" | "leader-and-replica";
 
 export interface LessonCompletionFacts {
   primaryRegion: string | null;
   readRegionCount: number;
   writePhase: WritePhase;
-  readPhase: ReadPhase;
   consistencyPhase: ConsistencyPhase;
   failoverPhase: FailoverPhase;
 }
-
-const preparedTopologyLessons = new Set<StepId>([
-  "write-path",
-  "replica-read",
-  "stale-read",
-  "recovery",
-]);
-const replicaPreferredClientLessons = new Set<StepId>([
-  "replica-read",
-  "stale-read",
-]);
 
 export function isStepId(value: unknown): value is StepId {
   return typeof value === "string" && STEPS.some((step) => step.id === value);
@@ -64,10 +41,7 @@ export function parseCurriculumLocation(pathname: string): CurriculumLocation {
     const lesson = getLessonBySlug(lessonPath[1]);
     if (lesson) return { kind: "lesson", lessonId: lesson.id };
   }
-  return {
-    kind: "home",
-    curriculum: /^\/lessons\/?$/.test(pathname),
-  };
+  return { kind: "home", course: /^\/lessons\/?$/.test(pathname) };
 }
 
 export function getAdjacentLessonId(
@@ -78,31 +52,10 @@ export function getAdjacentLessonId(
   return STEPS[getStepIndexById(lessonId) + offset]?.id ?? null;
 }
 
-export function lessonNeedsPreparedTopology(lessonId: StepId): boolean {
-  return preparedTopologyLessons.has(lessonId);
-}
-
-export function lessonPrefersReplicaClient(lessonId: StepId): boolean {
-  return replicaPreferredClientLessons.has(lessonId);
-}
-
-export function getRegionInteraction(lessonId: StepId): RegionInteraction {
-  switch (lessonId) {
-    case "distributed-service":
-      return "choose-primary";
-    case "replication":
-      return "toggle-replica";
-    case "write-path":
-    case "replica-read":
-    case "stale-read":
-      return "place-client";
-    case "recovery":
-      return "none";
-    default: {
-      const _exhaustive: never = lessonId;
-      return _exhaustive;
-    }
-  }
+export function getTopologyRequirement(
+  lessonId: StepId
+): TopologyRequirement {
+  return lessonId === "build" ? "none" : "leader-and-replica";
 }
 
 export function isLessonComplete(
@@ -110,20 +63,13 @@ export function isLessonComplete(
   facts: LessonCompletionFacts
 ): boolean {
   switch (lessonId) {
-    case "distributed-service":
-      return facts.primaryRegion !== null;
-    case "replication":
+    case "build":
       return facts.primaryRegion !== null && facts.readRegionCount > 0;
-    case "write-path":
+    case "write":
       return facts.writePhase === "complete";
-    case "replica-read":
-      return facts.readPhase === "complete";
     case "stale-read":
-      return (
-        facts.consistencyPhase === "result" ||
-        facts.consistencyPhase === "complete"
-      );
-    case "recovery":
+      return facts.consistencyPhase === "complete";
+    case "failure":
       return facts.failoverPhase === "complete";
     default: {
       const _exhaustive: never = lessonId;

@@ -47,6 +47,25 @@ describe("consistency lesson simulation", () => {
     expect(state.isStale).toBe(false);
   });
 
+  it("waits for the delayed read after replication arrives", () => {
+    let state = startRace(500, 50, 10);
+    state = reduceConsistencySimulation(state, {
+      kind: "tick",
+      deltaSeconds: 0.4,
+    }).state;
+
+    expect(state.replicationProgress).toBe(1);
+    expect(state.readStarted).toBe(false);
+    expect(state.phase).toBe("racing");
+
+    state = reduceConsistencySimulation(state, {
+      kind: "tick",
+      deltaSeconds: 2,
+    }).state;
+    expect(state.phase).toBe("result");
+    expect(state.isStale).toBe(false);
+  });
+
   it("keeps the result visible before completing", () => {
     let state = startRace(0, 100, 10);
     state = reduceConsistencySimulation(state, {

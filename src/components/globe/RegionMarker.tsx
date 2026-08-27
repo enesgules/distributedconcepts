@@ -24,6 +24,7 @@ interface RegionMarkerProps {
 }
 
 const MARKER_RADIUS = 0.032;
+const MARKER_HIT_RADIUS = 0.12;
 const MARKER_ELEVATION = 0.025;
 
 export default function RegionMarker({
@@ -106,6 +107,17 @@ export default function RegionMarker({
 
   return (
     <group position={position}>
+      {onClick ? (
+        <mesh
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
+          onClick={handleClick}
+        >
+          <sphereGeometry args={[MARKER_HIT_RADIUS, 12, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
+
       {/* Core dot — bright white so it's visible on both day and night */}
       <mesh
         ref={meshRef}

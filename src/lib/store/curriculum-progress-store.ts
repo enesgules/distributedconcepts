@@ -14,9 +14,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readCompletedLessonIds(persisted: unknown): StepId[] {
   if (!isRecord(persisted)) return [];
-  const candidate = Array.isArray(persisted.completedLessonIds)
-    ? persisted.completedLessonIds
-    : persisted.completedStepIds;
+  const candidate = persisted.completedLessonIds;
   return Array.isArray(candidate) ? candidate.filter(isStepId) : [];
 }
 
@@ -30,7 +28,7 @@ export const useCurriculumProgressStore = create<CurriculumProgressState>()(
       },
     }),
     {
-      name: "distributed-concepts-onboarding:v5",
+      name: "distributed-concepts-course:v6",
       merge: (persisted, current) => ({
         ...current,
         completedLessonIds: readCompletedLessonIds(persisted),

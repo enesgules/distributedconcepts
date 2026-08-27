@@ -8,7 +8,6 @@ import { runSimulationEffects } from "./run-simulation-effects";
 
 interface WriteFlowStore extends WriteSimulationState {
   setClientLocation: (lat: number, lon: number) => void;
-  setCommand: (command: string) => void;
   startAnimation: (
     primaryLatencyMs: number,
     replicas: Array<{ regionId: string; latencyMs: number }>
@@ -31,7 +30,6 @@ export const useWriteFlowStore = create<WriteFlowStore>((set, get) => {
     ...createWriteSimulationState(),
     setClientLocation: (lat, lon) =>
       apply({ kind: "set-client", location: { lat, lon } }),
-    setCommand: (command) => apply({ kind: "set-command", command }),
     startAnimation: (primaryLatencyMs, replicas) =>
       apply({ kind: "start", primaryLatencyMs, replicas }),
     startReplication: () => apply({ kind: "start-replication" }),

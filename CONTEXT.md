@@ -1,14 +1,13 @@
 # Domain glossary
 
-## Curriculum
+## Course
 
-The ordered set of interactive and planned lessons. An interactive lesson has
-one stable `StepId`, one slug, one chapter, and one position in the learning
-path.
+The ordered set of four interactive experiments. Each experiment has one
+stable `StepId`, one slug, and one position in the course.
 
-## Curriculum runtime
+## Course runtime
 
-The module that resolves curriculum identity, route location, order, direct
+The module that resolves course identity, route location, order, direct
 entry preparation, and lesson completion. Rendering stays in the page and
 lesson-specific modules.
 
@@ -31,5 +30,5 @@ understand the current state before triggering the next action.
 ## Latency model
 
 The module that compares network paths and samples variation for a simulated
-run. Curriculum comparisons use one deterministic world sample. Interactive
-runs may sample jitter explicitly.
+run. Course comparisons use one deterministic world sample. Interactive runs
+may sample jitter explicitly.

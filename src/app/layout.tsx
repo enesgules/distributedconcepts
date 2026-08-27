@@ -94,7 +94,7 @@ export default function RootLayout({
                       href="https://github.com/enesgules/distributedconcepts"
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label="Star on GitHub"
+                      aria-label="View source on GitHub"
                       className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line-subtle)] bg-[var(--surface-panel)] text-[var(--text-tertiary)] backdrop-blur-sm transition-[border-color,color,scale] duration-150 hover:border-[var(--line-strong)] hover:text-zinc-200 active:scale-[0.96] md:h-10 md:w-10"
                     >
                       <svg
@@ -109,7 +109,7 @@ export default function RootLayout({
                     </a>
                   }
                 />
-                <TooltipContent side="bottom">Star on GitHub</TooltipContent>
+                <TooltipContent side="bottom">View source</TooltipContent>
               </Tooltip>
               <SoundToggle />
               <CurriculumButton />
